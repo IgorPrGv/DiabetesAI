@@ -1,0 +1,543 @@
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 24px 48px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e6edf1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 22px;
+  color: #1f4bd8;
+}
+
+.brand p {
+  margin: 4px 0 0;
+  color: #6b7482;
+}
+
+.voice-toggle {
+  border: 1px solid #dde5ea;
+  background: #ffffff;
+  padding: 8px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tabs {
+  margin: 20px 0;
+  display: flex;
+  gap: 12px;
+  background: #edf3f7;
+  padding: 8px;
+  border-radius: 18px;
+  justify-content: space-between;
+}
+
+.tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-weight: 600;
+  color: #515b66;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: #ffffff;
+  color: #1c1f23;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid #e5edf2;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.card-title h3,
+.card-title h2 {
+  margin: 0;
+}
+
+.card-title p {
+  margin: 6px 0 0;
+  color: #6b7482;
+}
+
+.card-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.status-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f4ff;
+}
+
+.status-icon.success {
+  background: #e8f6ee;
+  color: #1d8a4d;
+}
+
+.status-icon.blue {
+  background: #e8f0ff;
+  color: #1f4bd8;
+}
+
+.status-icon.purple {
+  background: #f1e9ff;
+  color: #6a35d4;
+}
+
+.hero p {
+  color: #6b7482;
+  margin-top: 6px;
+}
+
+.note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #e7edf2;
+  border-radius: 12px;
+  background: #f8fbfd;
+  color: #556070;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.summary-card {
+  border: 1px solid #e7edf2;
+  padding: 16px;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.summary-card h3 {
+  margin: 6px 0 0;
+  font-size: 22px;
+}
+
+.summary-card h3.green {
+  color: #1d8a4d;
+}
+
+.summary-card h3.purple {
+  color: #7a3ed3;
+}
+
+.summary-card h3.blue {
+  color: #1f4bd8;
+}
+
+.timeline-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.timeline-item {
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid transparent;
+}
+
+.timeline-item.alert,
+.timeline-item.meal,
+.timeline-item.monitoring {
+  background: #fdecec;
+  border-color: #f5b9b9;
+}
+
+.timeline-item.activity,
+.timeline-item.snack,
+.timeline-item.medication {
+  background: #fff7cc;
+  border-color: #f1d46a;
+}
+
+.timeline-item.hydration {
+  background: #e3efff;
+  border-color: #a7c7ff;
+}
+
+.timeline-tags {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.tag.outline {
+  border: 1px solid #d7dfe6;
+  background: #ffffff;
+}
+
+.tag.solid {
+  color: #ffffff;
+}
+
+.tag.solid.high {
+  background: #121827;
+}
+
+.tag.solid.medium {
+  background: #4b5563;
+}
+
+.tag.solid.low {
+  background: #2f6fed;
+}
+
+.timeline-text {
+  margin: 8px 0 0;
+  color: #27303c;
+}
+
+.speaker {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.alert-card {
+  border: 1px solid #f5b9b9;
+  background: #fff3f3;
+  padding: 14px;
+  border-radius: 14px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.alert-card h4 {
+  margin: 0;
+  color: #cf1d1d;
+}
+
+.alert-card p {
+  margin: 6px 0 0;
+  color: #cf1d1d;
+}
+
+.chart-area {
+  margin-top: 12px;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 220px;
+}
+
+.limit {
+  stroke: #e5e7eb;
+  stroke-dasharray: 4 4;
+}
+
+.limit.high {
+  stroke: #f08080;
+}
+
+.limit.target {
+  stroke: #f4c38c;
+}
+
+.limit.low {
+  stroke: #f08080;
+}
+
+.glucose-line {
+  fill: none;
+  stroke: #1f4bd8;
+  stroke-width: 3;
+}
+
+.glucose-dot {
+  fill: #1f4bd8;
+}
+
+.chart-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #6b7482;
+  margin-top: 6px;
+}
+
+.legend {
+  margin-top: 10px;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #6b7482;
+}
+
+.badge {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 6px;
+  margin-right: 6px;
+}
+
+.badge.target {
+  background: #d6f4de;
+}
+
+.badge.elevated {
+  background: #ffe6b3;
+}
+
+.badge.high-risk {
+  background: #ffd6d6;
+}
+
+.form-card .field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.form-card input {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #e4e9ee;
+  background: #f7f9fb;
+}
+
+.form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  color: #6b7482;
+}
+
+.primary {
+  background: #121827;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  cursor: pointer;
+}
+
+.nutrition-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 20px;
+}
+
+.inventory-group {
+  margin-top: 12px;
+}
+
+.inventory-group h4 {
+  margin-bottom: 6px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 14px;
+}
+
+.meal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.meal-card {
+  border: 1px solid #e7edf2;
+  border-radius: 14px;
+  padding: 16px;
+  position: relative;
+}
+
+.meal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.meal-title {
+  font-size: 12px;
+  color: #6b7482;
+}
+
+.meal-icon {
+  font-size: 20px;
+}
+
+.meal-tags {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+
+.pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e7f5ed;
+  color: #1d8a4d;
+  font-size: 12px;
+}
+
+.pill.outline {
+  background: #eff4ff;
+  color: #1f4bd8;
+}
+
+.pill.alert {
+  background: #ffe6b3;
+  color: #b45309;
+}
+
+.meal-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 12px;
+  font-size: 12px;
+  color: #6b7482;
+}
+
+.meal-stats strong {
+  display: block;
+  color: #1c1f23;
+  margin-top: 2px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.field.inline {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.bmi {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.pill-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.sync {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f1f6ff;
+}
+
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.agent-card {
+  border-radius: 14px;
+  padding: 16px;
+  border: 1px solid transparent;
+}
+
+.agent-card.green {
+  background: #eefaf2;
+  border-color: #b7e6c5;
+}
+
+.agent-card.blue {
+  background: #edf3ff;
+  border-color: #b7cdf7;
+}
+
+.agent-card.purple {
+  background: #f4efff;
+  border-color: #d2c3ff;
+}
+
+@media (max-width: 960px) {
+  .nutrition-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

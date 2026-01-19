@@ -1,0 +1,2777 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DiabetesAI - Plano Diário</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+      :root {
+        --bg: #f2f6fb;
+        --card: #ffffff;
+        --text: #1f2a36;
+        --muted: #6b7a90;
+        --accent: #3fb7ff;
+        --ok: #2f7a36;
+        --warn: #b26a00;
+        --bad: #d94848;
+      }
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+        font-size: 18px;
+      }
+      header {
+        padding: 24px;
+        text-align: center;
+        border-bottom: 1px solid #1f2a36;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
+      }
+      .chat-card {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .chat-messages {
+        background: #0f141b;
+        border: 1px solid #1f2a36;
+        border-radius: 12px;
+        padding: 12px;
+        max-height: 360px;
+        overflow-y: auto;
+      }
+      .chat-message {
+        display: flex;
+        margin-bottom: 10px;
+      }
+      .chat-message.assistant {
+        justify-content: flex-start;
+      }
+      .chat-message.user {
+        justify-content: flex-end;
+      }
+      .bubble {
+        max-width: 75%;
+        padding: 10px 12px;
+        border-radius: 12px;
+        font-size: 16px;
+        line-height: 1.4;
+        white-space: pre-wrap;
+      }
+      .bubble.assistant {
+        background: #1b2430;
+        color: var(--text);
+      }
+      .bubble.user {
+        background: var(--accent);
+        color: #0b0f14;
+      }
+      .chat-input-row {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+      }
+      .chat-input-row textarea {
+        min-height: 72px;
+      }
+      .chat-send {
+        min-width: 110px;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--muted);
+      }
+      textarea {
+        width: 100%;
+        min-height: 160px;
+        background: #0f141b;
+        color: var(--text);
+        border: 1px solid #1f2a36;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 16px;
+      }
+      button {
+        background: var(--accent);
+        color: #0b0f14;
+        border: none;
+        padding: 12px 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        margin-right: 8px;
+      }
+      button.secondary {
+        background: #233244;
+        color: var(--text);
+      }
+      .status {
+        font-weight: bold;
+      }
+      .status.ok {
+        color: var(--ok);
+      }
+      .status.warn {
+        color: var(--warn);
+      }
+      .status.bad {
+        color: var(--bad);
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #0f141b;
+        padding: 12px;
+        border-radius: 8px;
+      }
+      .sr-only {
+        position: absolute;
+        left: -9999px;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 32px;
+        background: #ffffff;
+        border-bottom: 1px solid #e4e9f0;
+      }
+      .brand-title {
+        font-weight: 700;
+        color: #1c5dff;
+        font-size: 20px;
+      }
+      .brand-subtitle {
+        color: #6b7a90;
+        font-size: 14px;
+      }
+      .voice-toggle {
+        background: #f4f6fa;
+        color: #0b0f14;
+        border: 1px solid #d7dde7;
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+      }
+      .topbar-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        padding: 12px;
+        background: #e8eff7;
+        border-radius: 14px;
+        justify-content: space-between;
+        margin-bottom: 24px;
+      }
+      .tab {
+        flex: 1;
+        padding: 8px 10px;
+        border-radius: 999px;
+        border: none;
+        background: transparent;
+        font-weight: 600;
+        color: #3a4a5e;
+        cursor: pointer;
+      }
+      .tab.active {
+        background: #ffffff;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+      }
+      .section {
+        display: none;
+      }
+      .section.active {
+        display: block;
+      }
+      .section-card {
+        background: var(--card);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      }
+      .section-title {
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .section-subtitle {
+        color: #6b7a90;
+        font-size: 14px;
+      }
+      .info-pill {
+        margin-top: 12px;
+        background: #f6f8fb;
+        border: 1px solid #e1e7f0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .stat-card {
+        background: var(--card);
+        border-radius: 14px;
+        padding: 16px;
+        text-align: center;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      }
+      .stat-label {
+        color: #6b7a90;
+        font-size: 14px;
+      }
+      .stat-value {
+        font-weight: 700;
+        color: #1d5cff;
+        font-size: 20px;
+      }
+      .timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .timeline-item {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        border-radius: 12px;
+        padding: 12px;
+        background: #f7f9fc;
+        border: 1px solid #e3e8f0;
+      }
+      .timeline-item.alert {
+        background: #ffe9e9;
+        border-color: #f8b4b4;
+      }
+      .timeline-item.critical {
+        background: #ffe9e9;
+        border-color: #f29b9b;
+      }
+      .timeline-item.warn {
+        background: #fff4d6;
+        border-color: #f7d27e;
+      }
+      .timeline-item.info {
+        background: #e7f1ff;
+        border-color: #9bbcff;
+      }
+      .badge {
+        background: #ffffff;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1px solid #d4dbe7;
+      }
+      .timeline-text {
+        font-size: 14px;
+      }
+      .agent-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .agent-card {
+        background: #f0f6ff;
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid #dbe6ff;
+      }
+      .agent-title {
+        font-weight: 700;
+        color: #2055ff;
+        margin-bottom: 6px;
+      }
+      .agent-text {
+        font-size: 13px;
+        color: #4b5c72;
+      }
+      .alert-card {
+        background: #ffe9e9;
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid #ffb4b4;
+        margin-bottom: 10px;
+        font-size: 14px;
+      }
+      .alert-card.warn {
+        background: #fff4d6;
+        border-color: #f7d27e;
+      }
+      .chart-placeholder {
+        height: 220px;
+        background: #f1f5fb;
+        border-radius: 12px;
+        margin-top: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #8a9ab0;
+        font-size: 14px;
+      }
+      .legend-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .legend-pill {
+        background: #f4f6fa;
+        border: 1px solid #d9e1ee;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+      .legend-pill.warn {
+        background: #fff4d6;
+        border-color: #f7d27e;
+      }
+      .legend-pill.critical {
+        background: #ffe9e9;
+        border-color: #f8b4b4;
+      }
+      .form-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+      .input {
+        flex: 1;
+        min-width: 200px;
+        padding: 10px 12px;
+      }
+      .required-field {
+        position: relative;
+      }
+      .required-field::after {
+        content: " *";
+        color: var(--bad);
+        font-weight: bold;
+      }
+      .required-label {
+        color: var(--bad);
+        font-weight: bold;
+      }
+      .field-hint {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 4px;
+        font-style: italic;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .btn-primary {
+        background: #0b0f14;
+        color: #ffffff;
+        border-radius: 10px;
+        padding: 10px 16px;
+        border: none;
+        cursor: pointer;
+      }
+      .helper-text {
+        color: #6b7a90;
+        font-size: 13px;
+        margin-top: 6px;
+      }
+      .two-column {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) minmax(320px, 2fr);
+        gap: 16px;
+      }
+      .checklist label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        margin-bottom: 6px;
+      }
+      .check-title {
+        font-weight: 700;
+        margin-top: 10px;
+        margin-bottom: 4px;
+      }
+      .meal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin-top: 10px;
+      }
+      .meal-card {
+        background: var(--card);
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid #e3e8f0;
+      }
+      .meal-title {
+        font-weight: 700;
+        color: #2d63ff;
+        font-size: 14px;
+        margin-bottom: 6px;
+      }
+      .meal-name {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .meal-desc {
+        color: #5b6b80;
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+      .pill-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .pill {
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-size: 11px;
+        border: 1px solid #d9e1ee;
+        background: #f4f6fa;
+      }
+      .pill.ok {
+        background: #e6f8e7;
+        border-color: #b7e2ba;
+        color: #2f7a36;
+      }
+      .pill.warn {
+        background: #fff4d6;
+        border-color: #f7d27e;
+      }
+      .meal-macros {
+        font-size: 11px;
+        color: #5b6b80;
+      }
+      .chat-toggle-btn {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .chat-toggle-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+      }
+      .chat-toggle-btn.expanded {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+      }
+      .chat-widget {
+        position: fixed;
+        right: 20px;
+        bottom: 90px;
+        width: 360px;
+        max-height: 500px;
+        background: #f7f9fc;
+        border: 1px solid #dbe6f5;
+        border-radius: 16px;
+        box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        display: flex;
+        flex-direction: column;
+        transform: translateY(20px) scale(0.95);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 999;
+      }
+      .chat-widget.expanded {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+        visibility: visible;
+      }
+        overflow: hidden;
+      }
+      .chat-header {
+        padding: 16px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 16px 16px 0 0;
+      }
+      .chat-title {
+        font-weight: 700;
+      }
+      .chat-controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .chat-voice, .chat-fullscreen {
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 14px;
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      .chat-voice:hover, .chat-fullscreen:hover {
+        background: rgba(255,255,255,0.3);
+        transform: scale(1.05);
+      }
+      .chat-voice.active {
+        background: rgba(255,255,255,0.4);
+        border-color: rgba(255,255,255,0.6);
+      }
+      .chat-widget.fullscreen {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        z-index: 9999 !important;
+        border-radius: 0 !important;
+      }
+      .chat-widget.fullscreen .chat-messages {
+        max-height: calc(100vh - 140px) !important;
+      }
+      }
+      .chat-widget .chat-messages {
+        max-height: 260px;
+        overflow-y: auto;
+        padding: 12px;
+        background: #f5f7fb;
+        border-bottom: 1px solid #e3e8f0;
+      }
+      .chat-widget .chat-input-row {
+        display: flex;
+        gap: 8px;
+        padding: 10px;
+        border-top: 1px solid #e3e8f0;
+      }
+      .chat-widget textarea {
+        min-height: 48px;
+        font-size: 14px;
+        background: #ffffff;
+        color: #1f2a36;
+      }
+      .chat-widget .bubble.user {
+        background: #3fb7ff;
+        color: #0b0f14;
+      }
+      .chat-widget .bubble.assistant {
+        background: #1f2933;
+        color: #ffffff;
+      }
+      .chat-widget .chat-send {
+        background: #3fb7ff;
+        color: #0b0f14;
+      }
+      /* Modal Styles */
+      .modal-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background: rgba(0, 0, 0, 0.6) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        z-index: 9999 !important;
+        padding: 20px !important;
+        /* Modal visibility is controlled by ng-if, so no need for visibility/opacity here */
+      }
+      .modal-content {
+        background: var(--card);
+        border-radius: 16px;
+        max-width: 700px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 24px;
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #e3e8f0;
+      }
+      .modal-title {
+        font-weight: 700;
+        font-size: 20px;
+        color: var(--text);
+      }
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 32px;
+        color: var(--muted);
+        cursor: pointer;
+        line-height: 1;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal-close:hover {
+        color: var(--text);
+      }
+      /* Food Item Styles */
+      .food-item {
+        background: #f7f9fc;
+        border: 1px solid #e3e8f0;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      .food-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+      }
+      .food-item-name {
+        font-weight: 700;
+        font-size: 16px;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+      .food-item-portion {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .substitution-btn {
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .substitution-btn:hover {
+        opacity: 0.9;
+      }
+      .food-nutrition-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .food-nutrition-item {
+        background: white;
+        border: 1px solid #e3e8f0;
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+      }
+      .food-nutrition-label {
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .food-nutrition-value {
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--text);
+      }
+      /* Substitutions Styles */
+      .substitutions-list {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #e3e8f0;
+      }
+      .substitution-item {
+        background: white;
+        border: 2px solid #e3e8f0;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .substitution-item:hover {
+        border-color: var(--accent);
+        background: #f0f8ff;
+      }
+      .substitution-item.selected {
+        border-color: var(--accent);
+        background: #e6f4ff;
+      }
+
+      /* Loading spinner animation */
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body ng-app="diabetesApp" ng-controller="MainCtrl as vm">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-title">DiabetesAI Care</div>
+        <div class="brand-subtitle">Your Personal Health Assistant</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="voice-toggle" id="voiceToggle" ng-click="vm.toggleVoice()">
+          {{vm.voiceEnabled ? 'Voice On' : 'Voice Off'}}
+        </button>
+        <button class="voice-toggle" ng-click="vm.logout()">Logout</button>
+      </div>
+    </header>
+
+    <main>
+      <nav class="tabs">
+        <button class="tab" ng-class="{active: vm.activeTab==='daily-plan'}" ng-click="vm.setTab('daily-plan')">Daily Plan</button>
+        <button class="tab" ng-class="{active: vm.activeTab==='glucose-monitor'}" ng-click="vm.setTab('glucose-monitor')">Glucose Monitor</button>
+        <button class="tab" ng-class="{active: vm.activeTab==='nutrition'}" ng-click="vm.setTab('nutrition')">Nutrition</button>
+        <button class="tab" ng-class="{active: vm.activeTab==='profile'}" ng-click="vm.setTab('profile')">Profile</button>
+      </nav>
+
+      <section id="daily-plan" class="section" ng-class="{active: vm.activeTab==='daily-plan'}">
+        <div class="section-card">
+          <div class="section-title">Your Consolidated Daily Plan</div>
+          <div class="section-subtitle">Generated by the Judging Agent - harmonizing nutritional and glycemic recommendations</div>
+          <div class="info-pill">{{vm.planSummary}}</div>
+          <div class="form-row">
+            <button class="btn-primary" ng-click="vm.loadPlan()" ng-disabled="vm.loadingPlan">
+              {{vm.loadingPlan ? 'Gerando plano...' : 'Gerar novo plano'}}
+            </button>
+          </div>
+          <!-- Loading indicator -->
+          <div ng-if="vm.loadingPlan" class="loading-indicator" style="display: flex; align-items: center; justify-content: center; padding: 20px; margin-top: 10px;">
+            <div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 2s linear infinite; margin-right: 10px;"></div>
+            <span style="color: var(--muted); font-size: 14px;">Gerando plano personalizado com agentes colaborativos...</span>
+          </div>
+          <!-- Error message -->
+          <div ng-if="vm.planError" class="error-message" style="background: #fee; border: 1px solid #fcc; border-radius: 8px; padding: 12px; margin-top: 10px; color: #c33;">
+            <strong>Erro ao gerar plano:</strong> {{vm.planError}}
+            <br><small>Tente novamente em alguns minutos ou verifique se todos os dados do perfil estão preenchidos.</small>
+          </div>
+        </div>
+
+        <div class="stats-grid" style="margin-bottom: 24px;">
+          <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <div class="stat-label" style="color: rgba(255,255,255,0.9);">Meals Planned</div>
+            <div class="stat-value" style="font-size: 32px; font-weight: bold;">{{vm.stats.mealsPlanned || 0}}</div>
+          </div>
+          <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+            <div class="stat-label" style="color: rgba(255,255,255,0.9);">Glucose Checks</div>
+            <div class="stat-value" style="font-size: 32px; font-weight: bold;">{{vm.stats.glucoseChecks || 0}}</div>
+          </div>
+          <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+            <div class="stat-label" style="color: rgba(255,255,255,0.9);">Activities</div>
+            <div class="stat-value" style="font-size: 32px; font-weight: bold;">{{vm.stats.activities || 0}}</div>
+          </div>
+          <div class="stat-card" ng-if="vm.adherence" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
+            <div class="stat-label" style="color: rgba(255,255,255,0.9);">Adesão ao Plano</div>
+            <div class="stat-value" style="font-size: 32px; font-weight: bold;">{{vm.adherence.adherence_percentage}}%</div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">Today's Timeline</div>
+          <div class="section-subtitle">Follow these recommendations throughout your day</div>
+
+          <div class="timeline">
+            <div 
+              class="timeline-item" 
+              ng-class="{'alert': item.event_type === 'Alert', 'meal': item.event_type === 'Meal', 'activity': item.event_type === 'Activity', 'snack': item.event_type === 'Meal' && item.event_category === 'Snack'}"
+              ng-repeat="item in vm.timeline | orderBy:'time'"
+              ng-style="{'background': (item.color === 'red' ? '#fee' : item.color === 'yellow' ? '#fffbeb' : '#f0f9ff'), 'border-left': '4px solid ' + (item.color === 'red' ? '#ef4444' : item.color === 'yellow' ? '#f59e0b' : '#3b82f6'), 'border-radius': '8px', 'padding': '16px', 'margin-bottom': '12px'}">
+              <div class="badge" ng-style="{'background': (item.color === 'red' ? '#ef4444' : item.color === 'yellow' ? '#f59e0b' : '#3b82f6'), 'color': 'white', 'padding': '6px 14px', 'border-radius': '20px', 'font-size': '13px', 'font-weight': '500', 'margin-bottom': '8px', 'display': 'inline-block'}">
+                {{item.label || (item.time_display || item.time) + ' • ' + (item.event_category || item.event_type)}}
+              </div>
+              <div class="timeline-text" style="margin-top: 8px; line-height: 1.6; font-size: 14px;">
+                {{item.description || item.text}}
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                <button 
+                  ng-if="item.meal_type" 
+                  class="btn-secondary" 
+                  style="padding: 8px 16px; font-size: 14px;"
+                  ng-click="vm.showMealDetailsFromTimeline(item)">
+                  Ver Detalhes
+                </button>
+                <button
+                  ng-if="item.meal_type && vm.userId && !item.consumed"
+                  class="btn-primary"
+                  style="padding: 8px 16px; font-size: 14px;"
+                  ng-click="vm.markMealConsumed(item)">
+                  Marcar como Consumido
+                </button>
+                <button
+                  ng-if="item.meal_type && vm.userId && item.consumed"
+                  class="btn-danger"
+                  style="padding: 8px 16px; font-size: 14px; background: #f44336; color: white; border: 1px solid #d32f2f;"
+                  ng-click="vm.unmarkMealConsumed(item)">
+                  ❌ Desmarcar
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Time Customization Section -->
+          <div class="section-card" style="background: #f7f9fc; margin-top: 24px;" ng-if="vm.mealsWithTimes && vm.mealsWithTimes.length > 0">
+            <div class="section-title">Customize Meal Times</div>
+            <div class="section-subtitle">Adjust meal times to fit your schedule</div>
+            <div ng-repeat="meal in vm.mealsWithTimes" style="margin-bottom: 12px; padding: 12px; background: white; border-radius: 8px;">
+              <div style="font-weight: bold; margin-bottom: 8px;">{{meal.meal_type}}</div>
+              <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <label style="font-size: 14px;">Time:</label>
+                <input type="time" ng-model="meal.time" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" ng-change="vm.updateMealTime(meal)">
+                <span style="font-size: 12px; color: var(--muted);">or interval:</span>
+                <input type="time" ng-model="meal.timeStart" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 100px;" placeholder="Start">
+                <span>-</span>
+                <input type="time" ng-model="meal.timeEnd" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 100px;" placeholder="End" ng-change="vm.updateMealInterval(meal)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Adherence Tracking Section -->
+        <div class="section-card" ng-if="vm.userId">
+          <div class="section-title">Tracking de Adesão ao Plano</div>
+          <div class="section-subtitle">Acompanhe quantas refeições do plano você consumiu</div>
+          
+          <div class="form-row" style="margin-bottom: 16px;">
+            <button class="btn-primary" ng-click="vm.loadAdherence()" ng-disabled="vm.loadingAdherence">
+              {{vm.loadingAdherence ? 'Carregando...' : 'Atualizar Adesão'}}
+            </button>
+          </div>
+
+          <div ng-if="vm.adherence">
+            <div class="stats-grid" style="margin-bottom: 16px;">
+              <div class="stat-card">
+                <div class="stat-label">Refeições Planejadas</div>
+                <div class="stat-value">{{vm.adherence.total_planned}}</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Refeições Consumidas</div>
+                <div class="stat-value">{{vm.adherence.total_consumed}}</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Refeições Correspondentes</div>
+                <div class="stat-value">{{vm.adherence.matched_meals}}</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Taxa de Adesão</div>
+                <div class="stat-value" ng-class="{'status ok': vm.adherence.adherence_percentage >= 70, 'status warn': vm.adherence.adherence_percentage >= 50 && vm.adherence.adherence_percentage < 70, 'status bad': vm.adherence.adherence_percentage < 50}">
+                  {{vm.adherence.adherence_percentage}}%
+                </div>
+              </div>
+            </div>
+
+            <div class="section-card" style="background: #f7f9fc; margin-top: 16px;">
+              <div class="section-title">Adesão por Tipo de Refeição</div>
+              <div ng-repeat="(mealType, data) in vm.adherence.by_meal_type" style="margin-bottom: 12px; padding: 12px; background: white; border-radius: 8px;">
+                <div style="font-weight: bold; margin-bottom: 8px;">{{mealType}}</div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>Planejadas: {{data.planned}} | Consumidas: {{data.consumed}}</span>
+                  <span ng-class="{'status ok': (data.consumed / data.planned * 100) >= 70, 'status warn': (data.consumed / data.planned * 100) >= 50 && (data.consumed / data.planned * 100) < 70, 'status bad': (data.consumed / data.planned * 100) < 50}">
+                    {{data.planned > 0 ? ((data.consumed / data.planned * 100).toFixed(0)) : 0}}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-card" style="background: #f7f9fc; margin-top: 16px;" ng-if="vm.adherence.consumed_meals && vm.adherence.consumed_meals.length > 0">
+              <div class="section-title">Últimas Refeições Consumidas</div>
+              <div ng-repeat="meal in vm.adherence.consumed_meals" style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 8px; font-size: 14px;">
+                <div style="font-weight: bold;">{{meal.meal_type}}: {{meal.meal_name}}</div>
+                <div style="color: var(--muted); font-size: 12px;">{{meal.consumed_at | date:'dd/MM/yyyy HH:mm'}}</div>
+                <div ng-if="meal.notes" style="color: var(--muted); font-size: 12px; margin-top: 4px;">Nota: {{meal.notes}}</div>
+              </div>
+            </div>
+          </div>
+
+          <div ng-if="!vm.adherence && !vm.loadingAdherence" class="helper-text" style="text-align: center; padding: 20px;">
+            Nenhum dado de adesão disponível. Gere um plano e marque refeições como consumidas para ver suas métricas.
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">Multi-Agent System</div>
+          <div class="section-subtitle">How your plan was created</div>
+          <div class="agent-grid">
+            <div class="agent-card">
+              <div class="agent-title">Nutritional Agent</div>
+              <div class="agent-text">Analyzed your preferences, inventory, and clinical data to create balanced meal plans.</div>
+            </div>
+            <div class="agent-card">
+              <div class="agent-title">Diabetic Agent</div>
+              <div class="agent-text">Processed your glucose trends and issued preventive alerts.</div>
+            </div>
+            <div class="agent-card">
+              <div class="agent-title">Judging Agent</div>
+              <div class="agent-text">Harmonized all recommendations and resolved any conflicts.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="glucose-monitor" class="section" ng-class="{active: vm.activeTab==='glucose-monitor'}">
+        <div class="section-card">
+          <div class="section-title">Agente Diabético - Monitoramento de Glicose</div>
+          <div class="section-subtitle">Análise de glicose em tempo real com alertas preventivos de risco</div>
+        </div>
+        <div class="alert-card critical" ng-if="vm.alerts[0]">{{vm.alerts[0]}}</div>
+        <div class="alert-card warn" ng-if="vm.alerts[1]">{{vm.alerts[1]}}</div>
+
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-label">TIR (Time in Range)</div><div class="stat-value">{{vm.glucoseStats.tir}}%</div></div>
+          <div class="stat-card"><div class="stat-label">TAR (Time Above Range)</div><div class="stat-value">{{vm.glucoseStats.tar}}%</div></div>
+          <div class="stat-card"><div class="stat-label">TBR (Time Below Range)</div><div class="stat-value">{{vm.glucoseStats.tbr}}%</div></div>
+          <div class="stat-card"><div class="stat-label">Média</div><div class="stat-value">{{vm.glucoseStats.average}} mg/dL</div></div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">Histórico de Glicemias</div>
+          <div style="position: relative; height: 300px; margin-top: 12px;">
+            <canvas id="glucoseChart"></canvas>
+          </div>
+          <div class="legend-row">
+            <span class="legend-pill">Faixa Alvo 70-140 mg/dL</span>
+            <span class="legend-pill warn">Elevado 140-180 mg/dL</span>
+            <span class="legend-pill critical">Alto Risco &gt;180 mg/dL</span>
+          </div>
+          <div class="form-row" style="margin-top: 12px;">
+            <button class="btn-primary" ng-click="vm.loadGlucoseReadings()" ng-disabled="!vm.userId">
+              Atualizar Gráfico
+            </button>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">Registrar Leitura de Glicose</div>
+          <div class="form-row">
+            <div style="flex: 1; min-width: 200px;">
+              <label>Nível de Glicose</label>
+              <input class="input" type="number" placeholder="Ex: 140" ng-model="vm.newGlucoseReading.value" min="50" max="500" step="0.1" />
+              <div class="field-hint">Formato: Número em mg/dL. Ex: 140, 120, 180</div>
+            </div>
+            <div style="flex: 1; min-width: 200px;">
+              <label>Data e Hora</label>
+              <input class="input" type="datetime-local" ng-model="vm.newGlucoseReading.timestamp" />
+              <div class="field-hint">Formato: Data e hora (YYYY-MM-DDTHH:mm)</div>
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+              <button class="btn-primary" ng-click="vm.addGlucoseReading()" ng-disabled="!vm.userId || !vm.newGlucoseReading.value">
+                Adicionar Leitura
+              </button>
+            </div>
+          </div>
+          <div class="helper-text">Faixa normal: 70-140 mg/dL (jejum/pré-refeição)</div>
+          <div class="helper-text" ng-if="vm.glucoseStatus">{{vm.glucoseStatus}}</div>
+        </div>
+      </section>
+
+      <section id="nutrition" class="section" ng-class="{active: vm.activeTab==='nutrition'}">
+        <div class="section-card">
+          <div class="section-title">Agente Nutricional - Planejamento de Refeições</div>
+          <div class="section-subtitle">Recomendações personalizadas baseadas nos seus dados clínicos, preferências e ingredientes disponíveis</div>
+          <div class="form-row" style="margin-top: 12px;">
+            <button class="btn-primary" ng-click="vm.loadNutritionPlan()" ng-disabled="vm.loadingNutrition || !vm.userId">
+              {{vm.loadingNutrition ? 'Carregando...' : 'Atualizar Recomendações Nutricionais'}}
+            </button>
+          </div>
+          <div class="helper-text" ng-if="vm.nutritionStatus">{{vm.nutritionStatus}}</div>
+        </div>
+        <div class="two-column">
+          <div class="section-card">
+            <div class="section-title">Inventário Doméstico</div>
+            <div class="section-subtitle">Gerencie seus ingredientes disponíveis</div>
+            <div class="form-row">
+              <input class="input" placeholder="Adicionar ingrediente" ng-model="vm.newInventoryItem" />
+              <button class="btn-primary" ng-click="vm.addInventoryItem()">Adicionar</button>
+            </div>
+            <div style="margin-top: 12px;">
+              <div ng-repeat="item in vm.user.inventory" style="display: inline-block; margin: 4px 8px 4px 0;">
+                <span class="pill">{{item}}</span>
+                <button style="background: #d94848; color: white; border: none; border-radius: 4px; padding: 2px 6px; margin-left: 4px; cursor: pointer;" ng-click="vm.removeInventoryItem($index)">×</button>
+              </div>
+              <div ng-if="!vm.user.inventory || vm.user.inventory.length === 0" class="helper-text">
+                Nenhum ingrediente adicionado. Adicione itens do seu inventário doméstico.
+              </div>
+            </div>
+          </div>
+
+          <div class="section-card">
+            <div class="section-title">Refeições Recomendadas</div>
+            <div class="section-subtitle">Baseadas no Agente Nutricional e seus dados</div>
+            <div ng-if="!vm.meals || vm.meals.length === 0" class="helper-text" style="margin-top: 20px; text-align: center;">
+              Nenhuma recomendação disponível. Preencha seu perfil e gere um plano para ver recomendações.
+            </div>
+
+            <div ng-if="vm.meals && vm.meals.length > 0" class="info-pill" style="margin-top: 16px; margin-bottom: 16px; text-align: center;">
+              Mostrando {{vm.meals.length}} refeições da semana completa
+            </div>
+            <div class="meal-grid" ng-if="vm.meals && vm.meals.length > 0">
+              <div class="meal-card" ng-repeat="meal in vm.meals" style="cursor: pointer;" 
+                   ng-click="vm.showMealDetails(meal); console.log('Meal card clicked:', meal);"
+                   onclick="console.log('HTML onclick fired for meal:', this);">
+                <div class="meal-title">{{meal.meal_type || 'Refeição'}}</div>
+                <div class="meal-name">{{meal.name}}</div>
+                <div class="meal-desc">{{meal.desc}}</div>
+                <div class="pill-row">
+                  <span class="pill" ng-class="meal.glClass || 'ok'">{{meal.gl || 'Avaliar'}}</span>
+                  <span class="pill">{{meal.availability || 'Verificar'}}</span>
+                  <span class="pill" ng-class="{'status ok': meal.consumed, 'status warn': !meal.consumed}" ng-if="vm.userId">
+                    {{meal.consumed ? '✓ Consumido' : 'Não consumido'}}
+                  </span>
+                </div>
+                <div class="meal-macros">{{meal.macros || 'Macronutrientes não disponíveis'}}</div>
+                <button 
+                  class="btn-secondary" 
+                  style="margin-top: 8px; width: 100%; padding: 8px; font-size: 13px; cursor: pointer; z-index: 10; position: relative;"
+                  ng-click="vm.showMealDetails(meal); $event.stopPropagation();"
+                  onclick="console.log('Button HTML onclick fired!'); event.stopPropagation();">
+                  Ver Detalhes
+                </button>
+                <button
+                  ng-if="vm.userId && !meal.consumed"
+                  class="btn-primary"
+                  style="margin-top: 8px; width: 100%; padding: 8px; font-size: 13px;"
+                  ng-click="vm.markMealConsumedFromList(meal); $event.stopPropagation();">
+                  Marcar como Consumido
+                </button>
+                <button
+                  ng-if="vm.userId && meal.consumed"
+                  class="btn-danger"
+                  style="margin-top: 8px; width: 100%; padding: 8px; font-size: 13px; background: #f44336; color: white; border: 1px solid #d32f2f;"
+                  ng-click="vm.unmarkMealConsumedFromList(meal); $event.stopPropagation();">
+                  ❌ Desmarcar como Consumido
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Meal Details Modal -->
+      <div class="modal-overlay" ng-if="vm.selectedMeal" ng-click="vm.closeMealDetails()">
+        <div class="modal-content" ng-click="$event.stopPropagation();">
+          <div class="modal-header">
+            <div>
+              <div class="modal-title">{{vm.selectedMeal.meal_type || 'Refeição'}}</div>
+              <div style="font-size: 14px; color: var(--muted); margin-top: 4px;">{{vm.selectedMeal.name}}</div>
+            </div>
+            <button class="modal-close" ng-click="vm.closeMealDetails()">×</button>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 14px; color: var(--text); line-height: 1.6;">{{vm.selectedMeal.desc || vm.selectedMeal.description}}</div>
+          </div>
+
+          <!-- Total Nutrition -->
+          <div class="section-card" style="margin-bottom: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <div style="font-weight: 600; margin-bottom: 12px; font-size: 16px;">Macronutrientes Totais da Refeição</div>
+            <div class="food-nutrition-grid" style="color: white;">
+              <div class="food-nutrition-item" style="background: rgba(255,255,255,0.2);">
+                <div class="food-nutrition-label" style="color: rgba(255,255,255,0.9);">Calorias</div>
+                <div class="food-nutrition-value" style="color: white;">{{(vm.selectedMeal.total_nutrition && vm.selectedMeal.total_nutrition.calories) || 'N/A'}} kcal</div>
+              </div>
+              <div class="food-nutrition-item" style="background: rgba(255,255,255,0.2);">
+                <div class="food-nutrition-label" style="color: rgba(255,255,255,0.9);">Carboidratos</div>
+                <div class="food-nutrition-value" style="color: white;">{{(vm.selectedMeal.total_nutrition && vm.selectedMeal.total_nutrition.carbs_g) || 'N/A'}}g</div>
+              </div>
+              <div class="food-nutrition-item" style="background: rgba(255,255,255,0.2);">
+                <div class="food-nutrition-label" style="color: rgba(255,255,255,0.9);">Proteína</div>
+                <div class="food-nutrition-value" style="color: white;">{{(vm.selectedMeal.total_nutrition && vm.selectedMeal.total_nutrition.protein_g) || 'N/A'}}g</div>
+              </div>
+              <div class="food-nutrition-item" style="background: rgba(255,255,255,0.2);">
+                <div class="food-nutrition-label" style="color: rgba(255,255,255,0.9);">Gordura</div>
+                <div class="food-nutrition-value" style="color: white;">{{(vm.selectedMeal.total_nutrition && vm.selectedMeal.total_nutrition.fat_g) || 'N/A'}}g</div>
+              </div>
+              <div class="food-nutrition-item" style="background: rgba(255,255,255,0.2);">
+                <div class="food-nutrition-label" style="color: rgba(255,255,255,0.9);">Fibras</div>
+                <div class="food-nutrition-value" style="color: white;">{{(vm.selectedMeal.total_nutrition && vm.selectedMeal.total_nutrition.fiber_g) || 'N/A'}}g</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Food Items -->
+          <div style="margin-bottom: 20px;">
+            <div style="font-weight: 600; margin-bottom: 16px; font-size: 18px;">Alimentos da Refeição</div>
+            <div ng-if="!vm.selectedMeal.food_items || vm.selectedMeal.food_items.length === 0" style="padding: 20px; text-align: center; color: var(--muted);">
+              <div style="margin-bottom: 12px;">Informações detalhadas dos alimentos não disponíveis.</div>
+              <div style="font-size: 12px; color: var(--muted);" ng-if="vm.selectedMeal.items && vm.selectedMeal.items.length > 0">
+                Carregando dados nutricionais para {{vm.selectedMeal.items.length}} alimento(s)...
+              </div>
+              <div style="font-size: 12px; color: var(--muted);" ng-if="!vm.selectedMeal.items || vm.selectedMeal.items.length === 0">
+                Nenhum alimento listado nesta refeição.
+              </div>
+              <!-- Debug: Show items if available -->
+              <div ng-if="vm.selectedMeal.items && vm.selectedMeal.items.length > 0" style="margin-top: 12px; font-size: 12px; text-align: left; background: #f7f9fc; padding: 12px; border-radius: 8px;">
+                <div style="font-weight: 600; margin-bottom: 8px;">Itens da refeição:</div>
+                <div ng-repeat="item in vm.selectedMeal.items" style="margin-bottom: 4px;">• {{item}}</div>
+              </div>
+            </div>
+            <div ng-repeat="food in vm.selectedMeal.food_items" class="food-item">
+              <div class="food-item-header">
+                <div>
+                  <div class="food-item-name">{{food.name}}</div>
+                  <div class="food-item-portion" style="font-weight: 600; color: var(--primary);">{{food.portion || 'Porção não especificada'}} <span style="font-size: 11px; color: var(--muted);">(em gramas)</span></div>
+                </div>
+                <button class="substitution-btn" ng-click="vm.showSubstitutions(food, $index)">
+                  Ver Alternativas
+                </button>
+              </div>
+              
+              <div class="food-nutrition-grid">
+                <div class="food-nutrition-item">
+                  <div class="food-nutrition-label">Calorias</div>
+                  <div class="food-nutrition-value">{{(food.macros && food.macros.calories) || 'N/A'}} kcal</div>
+                </div>
+                <div class="food-nutrition-item">
+                  <div class="food-nutrition-label">Carboidratos</div>
+                  <div class="food-nutrition-value">{{(food.macros && food.macros.carbs_g) || 'N/A'}}g</div>
+                </div>
+                <div class="food-nutrition-item">
+                  <div class="food-nutrition-label">Proteína</div>
+                  <div class="food-nutrition-value">{{(food.macros && food.macros.protein_g) || 'N/A'}}g</div>
+                </div>
+                <div class="food-nutrition-item">
+                  <div class="food-nutrition-label">Gordura</div>
+                  <div class="food-nutrition-value">{{(food.macros && food.macros.fat_g) || 'N/A'}}g</div>
+                </div>
+                <div class="food-nutrition-item">
+                  <div class="food-nutrition-label">Fibras</div>
+                  <div class="food-nutrition-value">{{(food.macros && food.macros.fiber_g) || 'N/A'}}g</div>
+                </div>
+                <div class="food-nutrition-item">
+                  <div class="food-nutrition-label">Índice Glicêmico</div>
+                  <div class="food-nutrition-value">{{food.glycemic_index || 'N/A'}}</div>
+                </div>
+                <div class="food-nutrition-item">
+                  <div class="food-nutrition-label">Carga Glicêmica</div>
+                  <div class="food-nutrition-value">{{food.glycemic_load || 'N/A'}}</div>
+                </div>
+              </div>
+
+              <!-- Substitutions -->
+              <div class="substitutions-list" ng-if="vm.showingSubstitutions === $index">
+                <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">Alternativas para {{food.name}}:</div>
+                <div ng-if="vm.loadingSubstitutions" style="padding: 20px; text-align: center; color: var(--muted);">
+                  Carregando alternativas...
+                </div>
+                <div ng-if="!vm.loadingSubstitutions && (!vm.foodSubstitutions || vm.foodSubstitutions.length === 0)" style="padding: 20px; text-align: center; color: var(--muted);">
+                  Nenhuma alternativa encontrada na base de dados.
+                </div>
+                <div ng-repeat="sub in vm.foodSubstitutions" class="substitution-item" ng-class="{'selected': vm.selectedSubstitution === $index}" ng-click="vm.selectSubstitution(sub, $index, food)">
+                  <div style="font-weight: 600; margin-bottom: 4px;">{{sub.name}}</div>
+                  <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Similaridade: {{(sub.similarity * 100).toFixed(0)}}%</div>
+                  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-size: 12px;">
+                    <div>Carbs: {{(sub.nutrition && sub.nutrition.carbohydrate_g) ? sub.nutrition.carbohydrate_g.toFixed(1) : 'N/A'}}g</div>
+                    <div>Prot: {{(sub.nutrition && sub.nutrition.protein_g) ? sub.nutrition.protein_g.toFixed(1) : 'N/A'}}g</div>
+                    <div>Gord: {{(sub.nutrition && sub.nutrition.fat_g) ? sub.nutrition.fat_g.toFixed(1) : 'N/A'}}g</div>
+                    <div>IG: {{(sub.nutrition && sub.nutrition.glycemic_index) || 'N/A'}}</div>
+                  </div>
+                </div>
+                <button class="btn-primary" style="margin-top: 12px; width: 100%;" ng-click="vm.replaceFoodItem(food, vm.selectedSubstitution)" ng-disabled="vm.selectedSubstitution === null">
+                  Substituir por esta alternativa
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px; margin-top: 24px;">
+            <button class="btn-secondary" style="flex: 1;" ng-click="vm.closeMealDetails()">Fechar</button>
+            <button ng-if="vm.userId" class="btn-primary" style="flex: 1;" ng-click="vm.markMealConsumedFromModal(); $event.stopPropagation();" ng-disabled="vm.selectedMeal.consumed">
+              {{vm.selectedMeal.consumed ? '✓ Já Consumido' : 'Marcar como Consumido'}}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <section id="profile" class="section" ng-class="{active: vm.activeTab==='profile'}">
+        <div class="section-card">
+          <div class="section-title">Perfil do Usuário & Dados Clínicos</div>
+          <div class="section-subtitle">Esta informação ajuda os três agentes a fornecer recomendações personalizadas</div>
+        </div>
+
+        <!-- Basic Information -->
+        <div class="section-card">
+          <div class="section-title">Informações Básicas</div>
+          <div class="form-row">
+            <div style="flex: 1; min-width: 200px;">
+              <label class="required-label">Nome Completo</label>
+              <input class="input required-field" placeholder="Ex: João Silva" ng-model="vm.user.full_name" />
+              <div class="field-hint">Formato: Nome e sobrenome</div>
+            </div>
+            <div style="flex: 1; min-width: 200px;">
+              <label>Idade</label>
+              <input class="input" type="number" placeholder="Ex: 45" ng-model="vm.user.age" min="1" max="120" />
+              <div class="field-hint">Formato: Número inteiro (anos)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Anthropometric Data -->
+        <div class="section-card">
+          <div class="section-title">Dados Antropométricos</div>
+          <div class="form-row">
+            <div style="flex: 1; min-width: 200px;">
+              <label class="required-label">Peso</label>
+              <input class="input required-field" type="number" placeholder="Ex: 75" ng-model="vm.user.health_metrics.weight" min="30" max="300" step="0.1" />
+              <div class="field-hint">Formato: Número em quilogramas (kg). Ex: 75 ou 75.5</div>
+            </div>
+            <div style="flex: 1; min-width: 200px;">
+              <label class="required-label">Altura</label>
+              <input class="input required-field" type="number" placeholder="Ex: 165" ng-model="vm.user.health_metrics.height" min="100" max="250" step="0.1" />
+              <div class="field-hint">Formato: Número em centímetros (cm). Ex: 165 ou 175.5</div>
+            </div>
+            <div style="flex: 1; min-width: 200px;">
+              <label>IMC</label>
+              <input class="input" type="number" placeholder="IMC" ng-model="vm.user.health_metrics.bmi" readonly />
+              <div class="field-hint">Calculado automaticamente</div>
+            </div>
+          </div>
+          <div class="helper-text">IMC calculado automaticamente: {{vm.calculateBMI()}}</div>
+        </div>
+
+        <!-- Clinical Data -->
+        <div class="section-card">
+          <div class="section-title">Dados Clínicos</div>
+          <div class="form-row">
+            <div style="flex: 1; min-width: 200px;">
+              <label class="required-label">Tipo de Diabetes</label>
+              <input class="input required-field" placeholder="Ex: Type 2 ou Diabetes tipo 2" ng-model="vm.user.health_metrics.diabetes_type" />
+              <div class="field-hint">Formato: Texto. Ex: "Type 2", "Diabetes tipo 2", "Tipo 1"</div>
+            </div>
+            <div style="flex: 1; min-width: 200px;">
+              <label>Níveis de Glicose</label>
+              <input class="input" placeholder="Ex: 140-180 mg/dL ou Normal" ng-model="vm.user.health_metrics.glucose_levels" />
+              <div class="field-hint">Formato: Texto ou faixa. Ex: "140-180 mg/dL", "Normal", "Elevado"</div>
+            </div>
+            <div style="flex: 1; min-width: 200px;">
+              <label>Pressão Arterial</label>
+              <input class="input" placeholder="Ex: 120/80 mmHg" ng-model="vm.user.health_metrics.blood_pressure" />
+              <div class="field-hint">Formato: Sistólica/Diastólica. Ex: "120/80 mmHg", "130/85"</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div style="flex: 1;">
+              <label>Outras Condições</label>
+              <input class="input" placeholder="Ex: Hipertensão, Colesterol alto" ng-model="vm.otherConditionsText" />
+              <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Hipertensão, Colesterol alto, Obesidade"</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cultural Preferences -->
+        <div class="section-card">
+          <div class="section-title">Preferências Culturais</div>
+          <div class="form-row">
+            <div style="flex: 1; min-width: 200px;">
+              <label class="required-label">Culinária Preferida</label>
+              <input class="input required-field" placeholder="Ex: Brasileira, Italiana, Mediterrânea" ng-model="vm.user.preferences.cuisine" />
+              <div class="field-hint">Formato: Texto. Ex: "Brasileira", "Italiana", "Mediterrânea", "Asiática"</div>
+            </div>
+            <div style="flex: 1; min-width: 200px;">
+              <label class="required-label">Região</label>
+              <input class="input required-field" placeholder="Ex: Sudeste, Nordeste, Sul" ng-model="vm.user.preferences.region" />
+              <div class="field-hint">Formato: Texto. Ex: "Sudeste", "Nordeste", "Sul", "Norte", "Centro-Oeste"</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div style="flex: 1;">
+              <label>Alimentos que gosta</label>
+              <input class="input" placeholder="Ex: Frango, Peixe, Arroz integral, Legumes" ng-model="vm.likesText" />
+              <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Frango, Peixe, Arroz integral, Legumes"</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div style="flex: 1;">
+              <label>Alimentos que não gosta</label>
+              <input class="input" placeholder="Ex: Carne vermelha, Frituras, Doces" ng-model="vm.dislikesText" />
+              <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Carne vermelha, Frituras, Doces"</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <label><input type="checkbox" ng-model="vm.user_preferences.low_sodium" /> Baixo sódio</label>
+            <label><input type="checkbox" ng-model="vm.user_preferences.mediterranean" /> Dieta mediterrânea</label>
+            <label><input type="checkbox" ng-model="vm.user_preferences.low_fat" /> Baixo teor de gordura</label>
+          </div>
+        </div>
+
+        <!-- Dietary Restrictions -->
+        <div class="section-card">
+          <div class="section-title">Restrições Alimentares</div>
+          <div class="form-row">
+            <div style="flex: 1;">
+              <label>Alergias Alimentares</label>
+              <input class="input" placeholder="Ex: Amendoim, Frutos do mar, Lactose" ng-model="vm.user_allergies" />
+              <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Amendoim, Frutos do mar, Lactose"</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div style="flex: 1;">
+              <label class="required-label">Restrições</label>
+              <input class="input required-field" placeholder="Ex: Diabetes tipo 2, Limitar carboidratos refinados" ng-model="vm.restrictionsText" />
+              <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Diabetes tipo 2, Limitar carboidratos refinados, Sem glúten"</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Goals -->
+        <div class="section-card">
+          <div class="section-title">Metas</div>
+          <div class="form-row">
+            <div style="flex: 1;">
+              <label>Metas</label>
+              <input class="input" placeholder="Ex: Controlar glicemia, Perder peso moderadamente" ng-model="vm.goalsText" />
+              <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Controlar glicemia, Perder peso moderadamente, Aumentar atividade física"</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Household Inventory -->
+        <div class="section-card">
+          <div class="section-title">Inventário Doméstico <span class="required-label">*</span></div>
+          <div class="helper-text" style="margin-bottom: 12px;">Adicione pelo menos 3-5 alimentos disponíveis em casa para personalizar melhor o plano</div>
+          <div class="form-row">
+            <div style="flex: 1;">
+              <input class="input" placeholder="Ex: Arroz integral, Feijão, Frango, Peixe, Legumes" ng-model="vm.newInventoryItem" />
+              <div class="field-hint">Formato: Nome do alimento. Ex: "Arroz integral", "Feijão", "Frango", "Peixe", "Legumes"</div>
+            </div>
+            <button class="btn-primary" ng-click="vm.addInventoryItem()">Adicionar</button>
+          </div>
+          <div class="form-row" style="margin-top: 12px;">
+            <div ng-repeat="item in vm.user.inventory" style="display: inline-block; margin: 4px 8px 4px 0;">
+              <span class="pill">{{item}}</span>
+              <button style="background: #d94848; color: white; border: none; border-radius: 4px; padding: 2px 6px; margin-left: 4px; cursor: pointer;" ng-click="vm.removeInventoryItem($index)">×</button>
+            </div>
+            <div ng-if="!vm.user.inventory || vm.user.inventory.length === 0" class="helper-text" style="color: var(--warn);">
+              ⚠️ Nenhum item adicionado. Adicione pelo menos alguns alimentos para gerar um plano personalizado.
+            </div>
+          </div>
+        </div>
+
+        <!-- Save Profile -->
+        <div class="section-card">
+          <div class="section-title">Salvar Perfil</div>
+          <div class="helper-text" style="margin-bottom: 12px; padding: 12px; background: #f0f4f8; border-radius: 8px; border-left: 4px solid var(--accent);">
+            <strong>Campos Obrigatórios (*):</strong><br/>
+            • Nome Completo<br/>
+            • Peso (kg)<br/>
+            • Altura (cm)<br/>
+            • Tipo de Diabetes<br/>
+            • Culinária Preferida<br/>
+            • Região<br/>
+            • Restrições Alimentares<br/>
+            • Inventário Doméstico (pelo menos 3-5 itens recomendados)
+          </div>
+          <div class="form-row">
+            <button class="btn-primary" ng-click="vm.saveUser()" ng-disabled="vm.userSaving">
+              {{vm.userSaving ? 'Salvando...' : 'Salvar Perfil'}}
+            </button>
+            <button class="btn-primary" ng-click="vm.loadUser()" ng-disabled="!vm.userId">
+              Carregar Perfil
+            </button>
+            <button class="btn-primary" ng-click="vm.updateHealthMetrics()" ng-disabled="!vm.userId || vm.userSaving">
+              Salvar Dados Clínicos
+            </button>
+            <button class="btn-primary" ng-click="vm.updatePreferences()" ng-disabled="!vm.userId || vm.userSaving">
+              Salvar Preferências
+            </button>
+          </div>
+          <div class="helper-text">User ID: {{vm.userId || 'não salvo'}}</div>
+          <div class="helper-text" ng-class="{'status ok': vm.userStatus.includes('sucesso'), 'status bad': vm.userStatus.includes('erro')}">{{vm.userStatus}}</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Chat Toggle Button -->
+    <button class="chat-toggle-btn" id="chatToggle" ng-click="vm.toggleChat()" ng-class="{'expanded': vm.chatExpanded}" aria-label="Alternar chat do assistente">
+      <span ng-if="!vm.chatExpanded">💬</span>
+      <span ng-if="vm.chatExpanded">✕</span>
+    </button>
+
+    <!-- Chat Widget -->
+    <div class="chat-widget" ng-class="{'expanded': vm.chatExpanded, 'fullscreen': vm.chatFullscreen}" aria-live="polite" ng-show="vm.chatExpanded">
+      <div class="chat-header">
+        <div class="chat-title">🤖 Assistente Nutricional</div>
+        <div class="chat-controls">
+          <button class="chat-voice" id="chatVoice" ng-click="vm.toggleVoice()" ng-class="{'active': vm.voiceEnabled}" title="Ativar/Desativar voz">
+            <span ng-if="!vm.voiceEnabled">🔊</span>
+            <span ng-if="vm.voiceEnabled">🔇</span>
+          </button>
+          <button class="chat-fullscreen" ng-click="vm.toggleFullscreen()" title="Tela cheia">
+            <span ng-if="!vm.chatFullscreen">⛶</span>
+            <span ng-if="vm.chatFullscreen">⛶</span>
+          </button>
+        </div>
+      </div>
+      <div id="chatLog" class="chat-messages">
+        <div class="chat-message" ng-repeat="msg in vm.chatHistory" ng-class="msg.role">
+          <div class="bubble" ng-class="msg.role">{{msg.content}}</div>
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <textarea id="chatInput" aria-label="Pergunta" rows="2" placeholder="Digite sua pergunta..." ng-model="vm.chatInput"></textarea>
+        <button id="chatSend" class="chat-send" ng-click="vm.sendChat()" ng-disabled="vm.chatPending">Enviar</button>
+      </div>
+    </div>
+
+    <!-- Script Angular movido para o final do body -->
+    <script>
+      // Verify Angular is loaded
+      if (typeof angular === 'undefined') {
+        console.error("ERROR: AngularJS não está carregado!");
+        alert("Erro: AngularJS não está carregado. Verifique a conexão com a internet.");
+      } else {
+        console.log("✅ AngularJS carregado, versão:", angular.version.full);
+      }
+
+      const app = angular.module("diabetesApp", []);
+      console.log("✅ Módulo diabetesApp criado");
+
+      app.controller("MainCtrl", function($http, $timeout, $window, $scope) {
+        console.log("✅ MainCtrl inicializado");
+        const vm = this;
+        vm.activeTab = "daily-plan";
+        vm.voiceEnabled = false;
+        vm.loadingPlan = false;
+        vm.loadingNutrition = false;
+        vm.loadingAdherence = false;
+        vm.planSummary = "Seus planos salvos serão carregados automaticamente. Clique em 'Gerar novo plano' para criar um personalizado.";
+        vm.planError = null;
+        vm.stats = { mealsPlanned: 0, glucoseChecks: 0, activities: 0 };
+        vm.nutritionStatus = "";
+        vm.adherence = null;
+        vm.currentPlanId = null;
+        vm.alerts = [
+          "Your morning glucose reading was elevated (156 mg/dL). Reduce carbohydrate intake at breakfast.",
+          "Elevated fasting glucose detected. Consult your provider about adjusting evening meal or medication."
+        ];
+        vm.user = {};
+        vm.userId = null;
+        vm.userStatus = "";
+        vm.userSaving = false;
+        vm.chatHistory = [];
+        vm.chatPending = false;
+        vm.chatExpanded = false;
+        vm.meals = [];
+        vm.timeline = [];
+        vm.glucoseReadings = [];
+        vm.glucoseStats = null;
+        vm.newGlucoseReading = { value: null, timestamp: new Date().toISOString().slice(0, 16) };
+
+        // Meal Details Modal Functions
+        vm.selectedMeal = null;
+        vm.showingSubstitutions = null;
+
+        // Tab management
+        vm.setTab = function(tab) {
+          vm.activeTab = tab;
+          // Auto-load data when switching to tabs
+          if (tab === 'profile' && vm.userId && !vm.user.full_name) {
+            vm.loadUserData();
+          } else if (tab === 'daily-plan' && vm.userId) {
+            vm.loadExistingPlan();
+          } else if (tab === 'nutrition' && vm.userId) {
+            if (!vm.meals || vm.meals.length === 0) {
+              vm.loadNutritionPlan();
+            }
+          } else if (tab === 'glucose-monitor' && vm.userId) {
+            vm.loadGlucoseReadings();
+            vm.loadGlucoseStats();
+          }
+        };
+
+        vm.toggleVoice = function() {
+          vm.voiceEnabled = !vm.voiceEnabled;
+        };
+
+        vm.toggleChat = function() {
+          vm.chatExpanded = !vm.chatExpanded;
+          if (vm.chatExpanded) {
+            $timeout(() => {
+              const input = document.getElementById("chatInput");
+              if (input) input.focus();
+            }, 300);
+          }
+        };
+
+        vm.toggleFullscreen = function() {
+          vm.chatFullscreen = !vm.chatFullscreen;
+        };
+
+        vm.sendChat = function() {
+          const message = (vm.chatInput || "").trim();
+          if (!message || vm.chatPending) return;
+          vm.chatInput = "";
+          vm.appendChat("user", message);
+          vm.chatPending = true;
+          const typingIndex = vm.chatHistory.length;
+          vm.chatHistory.push({ role: "assistant", content: "Digitando..." });
+          $http.post("/api/chat", { message, history: vm.chatHistory }).then((res) => {
+            if (res.data && res.data.reply) {
+              vm.chatHistory[typingIndex].content = res.data.reply;
+              if (vm.voiceEnabled && 'speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(res.data.reply);
+                utterance.lang = 'pt-BR';
+                utterance.rate = 0.9;
+                utterance.pitch = 1;
+                speechSynthesis.speak(utterance);
+              }
+            } else {
+              vm.chatHistory[typingIndex].content = "Erro no chat.";
+            }
+          }).catch((err) => {
+            vm.chatHistory[typingIndex].content = "Erro: " + (err.data?.detail || err.statusText || "Falha");
+          }).finally(() => {
+            vm.chatPending = false;
+          });
+        };
+
+        vm.appendChat = function(role, content) {
+          vm.chatHistory.push({ role, content });
+          $timeout(() => {
+            const log = document.getElementById("chatLog");
+            if (log) log.scrollTop = log.scrollHeight;
+          });
+        };
+
+        vm.loadExistingPlan = function() {
+          if (!vm.userId) {
+            vm.planSummary = "Por favor, preencha seu perfil primeiro.";
+            return;
+          }
+          vm.loadingPlan = true;
+          vm.planError = null;
+          $http.get(`/api/users/${vm.userId}/plan`).then((res) => {
+            if (res.data && res.data.plan_json) {
+              const plan = res.data.plan_json;
+              vm.alerts = (plan.summary && plan.summary.alerts) || [];
+              vm.planSummary = `Plano carregado. Clique em "Gerar novo plano" para criar um personalizado.`;
+              vm.currentPlanId = res.data.plan_id;
+              if (plan.timeline) {
+                vm.timeline = plan.timeline.map(item => ({
+                  time: item.time || '08:00',
+                  time_display: item.time_display || formatTime(item.time || '08:00'),
+                  event_type: item.event_type || 'Meal',
+                  event_category: item.event_category || item.meal_type || 'Breakfast',
+                  label: item.label || `${item.time_display || formatTime(item.time || '08:00')} • ${item.event_category || 'Meal'}`,
+                  description: item.description || '',
+                  color: item.color || 'red',
+                  level: item.level || 'meal',
+                  meal_type: item.meal_type || item.event_category,
+                  text: item.description || item.label,
+                  consumed: false
+                }));
+              }
+              if (plan.summary) {
+                vm.stats = {
+                  mealsPlanned: plan.summary.meals_planned || 0,
+                  glucoseChecks: plan.summary.glucose_checks || 0,
+                  activities: plan.summary.activities || 0
+                };
+              }
+            } else {
+              vm.planSummary = "Nenhum plano encontrado. Clique em 'Gerar novo plano' para gerar um novo.";
+              vm.timeline = [];
+              vm.stats = { mealsPlanned: 0, glucoseChecks: 0, activities: 0 };
+              vm.alerts = [];
+            }
+          }).catch((err) => {
+            vm.planError = err.data?.detail || err.data?.message || "Erro ao carregar plano.";
+            vm.planSummary = "Erro ao carregar plano. Clique em 'Gerar novo plano' para tentar novamente.";
+            console.error("Erro ao carregar plano:", err);
+          }).finally(() => {
+            vm.loadingPlan = false;
+            // Sincronizar status de consumido após carregar o plano
+            $timeout(() => {
+              if (vm.adherence) {
+                vm.syncConsumedStatus();
+              }
+            }, 100);
+          });
+        };
+
+        vm.loadPlan = function() {
+          if (!vm.userId) {
+            vm.planSummary = "Por favor, preencha seu perfil primeiro.";
+            return;
+          }
+          vm.loadingPlan = true;
+          vm.planError = null;
+          $http.get(`/api/users/${vm.userId}/plan`, { params: { force_generate: true } }).then((res) => {
+            if (res.data && res.data.plan_json) {
+              const plan = res.data.plan_json;
+              vm.alerts = (plan.summary && plan.summary.alerts) || [];
+              vm.planSummary = "Plano gerado com base nos seus dados pessoais.";
+              if (plan.timeline) {
+                vm.timeline = plan.timeline.map(item => ({
+                  time: item.time || '08:00',
+                  time_display: item.time_display || formatTime(item.time || '08:00'),
+                  event_type: item.event_type || 'Meal',
+                  event_category: item.event_category || item.meal_type || 'Breakfast',
+                  label: item.label || `${item.time_display || formatTime(item.time || '08:00')} • ${item.event_category || 'Meal'}`,
+                  description: item.description || '',
+                  color: item.color || 'red',
+                  level: item.level || 'meal',
+                  meal_type: item.meal_type || item.event_category,
+                  text: item.description || item.label,
+                  consumed: false
+                }));
+              }
+              if (plan.summary) {
+                vm.stats = {
+                  mealsPlanned: plan.summary.meals_planned || 0,
+                  glucoseChecks: plan.summary.glucose_checks || 0,
+                  activities: plan.summary.activities || 0
+                };
+              }
+              if (res.data.plan_id) {
+                vm.currentPlanId = res.data.plan_id;
+              }
+              $timeout(() => {
+                vm.loadAdherence();
+              }, 500);
+            }
+          }).catch((err) => {
+            vm.planError = err.data?.detail || err.data?.message || "Não foi possível gerar o plano. Verifique se preencheu todos os dados necessários.";
+            console.error("Erro ao gerar plano:", err);
+          }).finally(() => {
+            vm.loadingPlan = false;
+          });
+        };
+
+        vm.loadAdherence = function() {
+          if (!vm.userId) return;
+          vm.loadingAdherence = true;
+          $http.get(`/api/users/${vm.userId}/adherence`, { params: { plan_id: vm.currentPlanId || null } }).then((res) => {
+            if (res.data && res.data.success) {
+              vm.adherence = res.data;
+              if (vm.stats) {
+                vm.stats.adherence = res.data.adherence_percentage;
+              }
+              // Sincronizar status de consumido nos itens do timeline e meals
+              vm.syncConsumedStatus();
+            }
+          }).catch((err) => {
+            if (err.status !== 404) {
+              console.error('Erro ao carregar adesão:', err);
+            }
+          }).finally(() => {
+            vm.loadingAdherence = false;
+          });
+        };
+
+        // Função para sincronizar o status de consumido entre adherence e timeline/meals
+        vm.syncConsumedStatus = function() {
+          if (!vm.adherence || !vm.adherence.consumed_meals) return;
+
+          // Sincronizar timeline (Daily Plan)
+          if (vm.timeline && vm.timeline.length > 0) {
+            vm.timeline.forEach(item => {
+              const consumedMeal = vm.adherence.consumed_meals.find(cm =>
+                cm.meal_type === item.meal_type ||
+                (item.label && cm.meal_name && item.label.toLowerCase().includes(cm.meal_name.toLowerCase())) ||
+                (item.description && cm.meal_name && item.description.toLowerCase().includes(cm.meal_name.toLowerCase()))
+              );
+              if (consumedMeal) {
+                item.consumed = true;
+              }
+            });
+          }
+
+          // Sincronizar meals (Nutrition)
+          if (vm.meals && vm.meals.length > 0) {
+            vm.meals.forEach(meal => {
+              const consumedMeal = vm.adherence.consumed_meals.find(cm =>
+                cm.meal_type === meal.meal_type ||
+                (meal.name && cm.meal_name && meal.name.toLowerCase().includes(cm.meal_name.toLowerCase())) ||
+                (meal.desc && cm.meal_name && meal.desc.toLowerCase().includes(cm.meal_name.toLowerCase()))
+              );
+              if (consumedMeal) {
+                meal.consumed = true;
+              }
+            });
+          }
+
+          // Sincronizar mealsWithTimes (Daily Plan - customização)
+          if (vm.mealsWithTimes && vm.mealsWithTimes.length > 0) {
+            vm.mealsWithTimes.forEach(meal => {
+              const consumedMeal = vm.adherence.consumed_meals.find(cm =>
+                cm.meal_type === meal.meal_type ||
+                (meal.name && cm.meal_name && meal.name.toLowerCase().includes(cm.meal_name.toLowerCase()))
+              );
+              if (consumedMeal) {
+                meal.consumed = true;
+              }
+            });
+          }
+        };
+
+        vm.loadGlucoseReadings = function() {
+          if (!vm.userId) return;
+          $http.get(`/api/users/${vm.userId}/glucose-readings`).then((res) => {
+            if (res.data && res.data.readings) {
+              vm.updateGlucoseChart(res.data.readings);
+            }
+          }).catch(() => {
+            console.error("Erro ao carregar leituras de glicose");
+          });
+        };
+
+        vm.loadGlucoseStats = function() {
+          if (!vm.userId) return;
+          $http.get(`/api/users/${vm.userId}/glucose-stats`).then((res) => {
+            if (res.data) {
+              vm.glucoseStats = res.data;
+              vm.glycemic = {
+                current: vm.glucoseStats.average > 0 ? vm.glucoseStats.average + " mg/dL" : "N/A",
+                average: vm.glucoseStats.average > 0 ? vm.glucoseStats.average + " mg/dL" : "N/A",
+                hba1c: vm.glucoseStats.average > 0 ? ((vm.glucoseStats.average + 46.7) / 28.7).toFixed(1) + "%" : "N/A",
+                trend: vm.glucoseStats.tir >= 70 ? "Estável" : "Atenção necessária"
+              };
+            }
+          }).catch(() => {
+            console.error("Erro ao carregar estatísticas de glicose");
+          });
+        };
+
+        vm.addGlucoseReading = function() {
+          if (!vm.userId || !vm.newGlucoseReading.value) return;
+          const reading = {
+            timestamp: vm.newGlucoseReading.timestamp || new Date().toISOString(),
+            value_mg_dl: parseFloat(vm.newGlucoseReading.value)
+          };
+          $http.post(`/api/users/${vm.userId}/glucose-readings`, reading).then(() => {
+            vm.glucoseStatus = "Leitura adicionada com sucesso.";
+            vm.newGlucoseReading = { value: null, timestamp: new Date().toISOString().slice(0, 16) };
+            vm.loadGlucoseReadings();
+            vm.loadGlucoseStats();
+          }).catch(() => {
+            vm.glucoseStatus = "Erro ao adicionar leitura.";
+          });
+        };
+
+        vm.logout = function() {
+          localStorage.removeItem("session_user_id");
+          $window.location.href = "/login";
+        };
+
+        vm.saveUser = function() {
+          const authUserId = Number(localStorage.getItem("session_user_id"));
+          if (!authUserId) {
+            vm.userStatus = "Erro: Não autenticado. Faça login novamente.";
+            return;
+          }
+          if (!vm.userId) {
+            $http.get(`/api/users/by-auth/${authUserId}`).then((res) => {
+              if (res.data && res.data.id) {
+                vm.userId = res.data.id;
+                vm.saveUser();
+              } else {
+                vm.userStatus = "Perfil não encontrado. Criando novo perfil...";
+                vm.createUserProfile(authUserId);
+              }
+            }).catch((err) => {
+              if (err.status === 404) {
+                vm.userStatus = "Criando novo perfil...";
+                vm.createUserProfile(authUserId);
+              } else {
+                vm.userStatus = "Erro ao buscar perfil: " + (err.data?.detail || "Erro desconhecido");
+              }
+            });
+            return;
+          }
+          vm.userSaving = true;
+          vm.userStatus = "";
+          const profile = {
+            full_name: vm.user.full_name || null,
+            age: vm.user.age ? parseInt(vm.user.age) : null,
+            health_metrics: {
+              diabetes_type: vm.user.health_metrics?.diabetes_type || null,
+              glucose_levels: vm.user.health_metrics?.glucose_levels || null,
+              weight: vm.user.health_metrics?.weight ? String(vm.user.health_metrics.weight) : null,
+              height: vm.user.health_metrics?.height ? String(vm.user.health_metrics.height) : null,
+              bmi: vm.calculateBMI() !== "—" ? parseFloat(vm.calculateBMI()) : null,
+              blood_pressure: vm.user.health_metrics?.blood_pressure || null,
+              other_conditions: vm.otherConditionsText ? vm.otherConditionsText.split(",").map(s => s.trim()).filter(s => s) : []
+            },
+            preferences: {
+              cuisine: vm.user.preferences?.cuisine || null,
+              region: vm.user.preferences?.region || null,
+              likes: vm.likesText ? vm.likesText.split(",").map(s => s.trim()).filter(s => s) : [],
+              dislikes: vm.dislikesText ? vm.dislikesText.split(",").map(s => s.trim()).filter(s => s) : [],
+              dietary_style: [
+                vm.user_preferences.low_sodium ? "low sodium" : null,
+                vm.user_preferences.mediterranean ? "mediterranean" : null,
+                vm.user_preferences.low_fat ? "low fat" : null
+              ].filter(Boolean).join(", ")
+            },
+            goals: vm.goalsText ? vm.goalsText.split(",").map(s => s.trim()).filter(s => s) : [],
+            restrictions: vm.restrictionsText ? vm.restrictionsText.split(",").map(s => s.trim()).filter(s => s) : [],
+            region: vm.user.region || null,
+            inventory: vm.user.inventory || [],
+            glucose_readings: vm.user.glucose_readings || [],
+            meal_history: vm.user.meal_history || [],
+            auth_user_id: authUserId
+          };
+          if (vm.user_allergies) {
+            profile.restrictions.push(`Allergy: ${vm.user_allergies}`);
+          }
+          $http.put(`/api/users/${vm.userId}`, profile).then((res) => {
+            vm.userStatus = "Perfil atualizado com sucesso.";
+            vm.userId = res.data.id;
+          }).catch((err) => {
+            vm.userStatus = "Erro ao atualizar perfil: " + (err.data?.detail || "Erro desconhecido");
+            console.error("Erro ao atualizar perfil:", err);
+          }).finally(() => {
+            vm.userSaving = false;
+          });
+        };
+
+        vm.createUserProfile = function(authUserId) {
+          vm.userSaving = true;
+          const profile = {
+            full_name: vm.user.full_name || null,
+            age: vm.user.age ? parseInt(vm.user.age) : null,
+            health_metrics: vm.user.health_metrics || {},
+            preferences: vm.user.preferences || {},
+            goals: vm.user.goals || [],
+            restrictions: vm.user.restrictions || [],
+            region: vm.user.region || null,
+            inventory: vm.user.inventory || [],
+            glucose_readings: vm.user.glucose_readings || [],
+            meal_history: vm.user.meal_history || [],
+            auth_user_id: authUserId
+          };
+          $http.post("/api/users", profile).then((res) => {
+            vm.userStatus = "Perfil criado com sucesso.";
+            vm.userId = res.data.id;
+          }).catch((err) => {
+            vm.userStatus = "Erro ao criar perfil: " + (err.data?.detail || "Erro desconhecido");
+            console.error("Erro ao criar perfil:", err);
+          }).finally(() => {
+            vm.userSaving = false;
+          });
+        };
+
+        vm.updateHealthMetrics = function() {
+          if (!vm.userId) {
+            vm.userStatus = "Erro: User ID não encontrado. Faça login novamente.";
+            return;
+          }
+          vm.userSaving = true;
+          const weight = vm.user.health_metrics?.weight;
+          const height = vm.user.health_metrics?.height;
+          const healthMetrics = {
+            diabetes_type: vm.user.health_metrics?.diabetes_type || null,
+            glucose_levels: vm.user.health_metrics?.glucose_levels || null,
+            weight: weight ? String(weight) : null,
+            height: height ? String(height) : null,
+            bmi: vm.calculateBMI() !== "—" ? parseFloat(vm.calculateBMI()) : null,
+            blood_pressure: vm.user.health_metrics?.blood_pressure || null,
+            other_conditions: vm.otherConditionsText ? vm.otherConditionsText.split(",").map(s => s.trim()).filter(s => s) : []
+          };
+          $http.put(`/api/users/${vm.userId}/health-metrics`, healthMetrics).then(() => {
+            vm.userStatus = "Dados clínicos salvos com sucesso.";
+          }).catch((err) => {
+            vm.userStatus = "Erro ao salvar dados clínicos: " + (err.data?.detail || "Erro desconhecido");
+            console.error("Erro ao salvar health metrics:", err);
+          }).finally(() => {
+            vm.userSaving = false;
+          });
+        };
+
+        vm.updatePreferences = function() {
+          if (!vm.userId) return;
+          vm.userSaving = true;
+          const preferences = {
+            cuisine: vm.user.preferences?.cuisine,
+            region: vm.user.preferences?.region,
+            likes: vm.likesText ? vm.likesText.split(",").map(s => s.trim()) : [],
+            dislikes: vm.dislikesText ? vm.dislikesText.split(",").map(s => s.trim()) : [],
+            dietary_style: [
+              vm.user_preferences.low_sodium ? "low sodium" : null,
+              vm.user_preferences.mediterranean ? "mediterranean" : null,
+              vm.user_preferences.low_fat ? "low fat" : null
+            ].filter(Boolean).join(", ")
+          };
+          $http.put(`/api/users/${vm.userId}/preferences`, preferences).then(() => {
+            vm.userStatus = "Preferências salvas com sucesso.";
+          }).catch(() => {
+            vm.userStatus = "Erro ao salvar preferências.";
+          }).finally(() => {
+            vm.userSaving = false;
+          });
+        };
+
+        vm.calculateBMI = function() {
+          const weight = parseFloat(vm.user.health_metrics?.weight);
+          const height = parseFloat(vm.user.health_metrics?.height) / 100;
+          if (weight && height) {
+            const bmi = (weight / (height * height)).toFixed(1);
+            if (vm.user.health_metrics) vm.user.health_metrics.bmi = parseFloat(bmi);
+            return bmi;
+          }
+          return "—";
+        };
+
+        vm.addInventoryItem = function() {
+          if (!vm.newInventoryItem || !vm.newInventoryItem.trim()) return;
+          if (!vm.user.inventory) vm.user.inventory = [];
+          vm.user.inventory.push(vm.newInventoryItem.trim());
+          vm.newInventoryItem = "";
+        };
+
+        vm.removeInventoryItem = function(index) {
+          if (vm.user.inventory) {
+            vm.user.inventory.splice(index, 1);
+          }
+        };
+
+        vm.markMealConsumed = function(mealItem) {
+          if (!vm.userId || !mealItem) return;
+          const mealType = mealItem.meal_type || (mealItem.label && mealItem.label.split('•')[1] ? mealItem.label.split('•')[1].trim() : null) || 'Refeição';
+          const mealName = mealItem.text || mealItem.name || 'Refeição do plano';
+          $http.post(`/api/users/${vm.userId}/consumed-meals`, {
+            meal_type: mealType,
+            meal_name: mealName,
+            plan_id: vm.currentPlanId,
+            notes: null
+          }).then((res) => {
+            if (res.data && res.data.success) {
+              mealItem.consumed = true;
+              vm.loadAdherence();
+            }
+          }).catch((err) => {
+            alert('Erro ao registrar refeição: ' + (err.data?.detail || 'Erro desconhecido'));
+          });
+        };
+
+        vm.unmarkMealConsumed = function(mealItem) {
+          if (!vm.userId || !mealItem || !vm.adherence || !vm.adherence.consumed_meals) return;
+
+          // Find the consumed meal record that matches this item
+          const consumedMeal = vm.adherence.consumed_meals.find(cm =>
+            cm.meal_type === mealItem.meal_type ||
+            (mealItem.label && cm.meal_name && mealItem.label.toLowerCase().includes(cm.meal_name.toLowerCase())) ||
+            (mealItem.description && cm.meal_name && mealItem.description.toLowerCase().includes(cm.meal_name.toLowerCase()))
+          );
+
+          if (!consumedMeal) {
+            alert('Registro de consumo não encontrado para esta refeição');
+            return;
+          }
+
+          if (confirm('Deseja realmente desmarcar esta refeição como consumida?')) {
+            $http.delete(`/api/users/${vm.userId}/consumed-meals/${consumedMeal.id}`).then((res) => {
+              if (res.data && res.data.success) {
+                mealItem.consumed = false;
+                vm.loadAdherence();
+              }
+            }).catch((err) => {
+              alert('Erro ao desmarcar refeição: ' + (err.data?.detail || 'Erro desconhecido'));
+            });
+          }
+        };
+
+        vm.markMealConsumedFromList = function(meal) {
+          if (!vm.userId || !meal) return;
+          const mealType = meal.meal_type || meal.type || 'Refeição';
+          const mealName = meal.name || meal.title || 'Refeição do plano';
+          $http.post(`/api/users/${vm.userId}/consumed-meals`, {
+            meal_type: mealType,
+            meal_name: mealName,
+            plan_id: vm.currentPlanId,
+            notes: null
+          }).then((res) => {
+            if (res.data && res.data.success) {
+              meal.consumed = true;
+              vm.loadAdherence();
+            }
+          }).catch((err) => {
+            alert('Erro ao registrar refeição: ' + (err.data?.detail || 'Erro desconhecido'));
+          });
+        };
+
+        vm.unmarkMealConsumedFromList = function(meal) {
+          vm.unmarkMealConsumed(meal); // Reuse the same logic
+        };
+
+        vm.loadNutritionPlan = function() {
+          if (!vm.userId) {
+            vm.nutritionStatus = "Por favor, preencha seu perfil primeiro.";
+            return;
+          }
+          vm.loadingNutrition = true;
+          vm.nutritionStatus = "";
+          // Use the same endpoint as loadExistingPlan to get nutrition data
+          $http.get(`/api/users/${vm.userId}/plan`).then((res) => {
+            if (res.data) {
+              const data = res.data;
+
+              // Extract all meals from meal_plan (complete 5-day plan)
+              let allMeals = [];
+
+              // First, try to extract from meal_plan string (most complete)
+              if (data.meal_plan && typeof data.meal_plan === 'string') {
+                allMeals = vm.extractMealsFromMealPlan(data.meal_plan);
+                console.log('📊 Extraídas', allMeals.length, 'refeições do meal_plan');
+              }
+
+              // Fallback: use meals and timeline from plan_json
+              if (allMeals.length === 0 && data.plan_json) {
+                const plan = data.plan_json;
+
+                // Add meals from the meals array (detailed nutrition)
+                if (plan.meals) {
+                  const detailedMeals = plan.meals.map(meal => ({
+                    day: 'N/A',
+                    meal_type: meal.meal_type || meal.type,
+                    name: meal.name || meal.title,
+                    desc: meal.description || meal.desc,
+                    gl: meal.glycemic_load || meal.gl || "Avaliar",
+                    glClass: meal.glycemic_class || "ok",
+                    availability: meal.availability || "Verificar inventário",
+                    macros: meal.macros || meal.macronutrients || "Não disponível",
+                    consumed: false,
+                    food_items: meal.food_items || [],
+                    total_nutrition: meal.total_nutrition || null,
+                    items: meal.items || [],
+                    time: meal.time || null,
+                    time_display: meal.time_display || null,
+                    is_detailed: true
+                  }));
+                  allMeals = allMeals.concat(detailedMeals);
+                }
+
+                // Add meals from timeline that are not already in meals array
+                if (plan.timeline) {
+                  const timelineMeals = plan.timeline
+                    .filter(item => item.event_type === 'Meal')
+                    .map(item => {
+                      const existingMeal = allMeals.find(m =>
+                        (m.meal_type === item.event_category) &&
+                        (m.desc === item.description || m.name === item.description)
+                      );
+
+                      if (!existingMeal) {
+                        return {
+                          day: 'N/A',
+                          meal_type: item.event_category || 'Refeição',
+                          name: item.label || item.description || 'Refeição do plano',
+                          desc: item.description || item.text || 'Refeição programada',
+                          gl: "Avaliar",
+                          glClass: "ok",
+                          availability: "Verificar inventário",
+                          macros: "Não disponível",
+                          consumed: false,
+                          food_items: [],
+                          total_nutrition: null,
+                          items: [],
+                          time: item.time || null,
+                          time_display: item.time_display || null,
+                          is_detailed: false
+                        };
+                      }
+                      return null;
+                    })
+                    .filter(meal => meal !== null);
+
+                  allMeals = allMeals.concat(timelineMeals);
+                }
+              }
+
+              // Fallback: use meals and timeline from plan_json
+              if (allMeals.length === 0 && data.plan_json) {
+                const plan = data.plan_json;
+
+                // Add meals from the meals array (detailed nutrition)
+                if (plan.meals) {
+                  const detailedMeals = plan.meals.map(meal => ({
+                    meal_type: meal.meal_type || meal.type,
+                    name: meal.name || meal.title,
+                    desc: meal.description || meal.desc,
+                    gl: meal.glycemic_load || meal.gl || "Avaliar",
+                    glClass: meal.glycemic_class || "ok",
+                    availability: meal.availability || "Verificar inventário",
+                    macros: meal.macros || meal.macronutrients || "Não disponível",
+                    consumed: false,
+                    food_items: meal.food_items || [],
+                    total_nutrition: meal.total_nutrition || null,
+                    items: meal.items || [],
+                    time: meal.time || null,
+                    time_display: meal.time_display || null,
+                    is_detailed: true // flag to indicate this has detailed nutrition
+                  }));
+                  allMeals = allMeals.concat(detailedMeals);
+                }
+
+                // Add meals from timeline that are not already in meals array
+                if (plan.timeline) {
+                  const timelineMeals = plan.timeline
+                    .filter(item => item.event_type === 'Meal')
+                    .map(item => {
+                      // Check if this meal is already in the detailed meals
+                      const existingMeal = allMeals.find(m =>
+                        (m.meal_type === item.event_category) &&
+                        (m.desc === item.description || m.name === item.description)
+                      );
+
+                      if (!existingMeal) {
+                        return {
+                          meal_type: item.event_category || 'Refeição',
+                          name: item.label || item.description || 'Refeição do plano',
+                          desc: item.description || item.text || 'Refeição programada',
+                          gl: "Avaliar",
+                          glClass: "ok",
+                          availability: "Verificar inventário",
+                          macros: "Não disponível",
+                          consumed: false,
+                          food_items: [],
+                          total_nutrition: null,
+                          items: [],
+                          time: item.time || null,
+                          time_display: item.time_display || null,
+                          is_detailed: false // flag to indicate this has no detailed nutrition
+                        };
+                      }
+                      return null;
+                    })
+                    .filter(meal => meal !== null);
+
+                  allMeals = allMeals.concat(timelineMeals);
+                }
+              }
+
+              // Sort meals by day and meal type
+              vm.meals = allMeals.sort((a, b) => {
+                // First sort by day order
+                const dayOrder = ['SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA', 'SÁBADO', 'DOMINGO'];
+                const aDayIndex = dayOrder.findIndex(day => a.day && a.day.includes(day));
+                const bDayIndex = dayOrder.findIndex(day => b.day && b.day.includes(day));
+
+                if (aDayIndex !== -1 && bDayIndex !== -1 && aDayIndex !== bDayIndex) {
+                  return aDayIndex - bDayIndex;
+                }
+
+                // Then by meal type order
+                const mealOrder = ['Café da manhã', 'Almoço', 'Jantar', 'Lanche'];
+                const aMealIndex = mealOrder.indexOf(a.meal_type);
+                const bMealIndex = mealOrder.indexOf(b.meal_type);
+
+                if (aMealIndex !== -1 && bMealIndex !== -1) {
+                  return aMealIndex - bMealIndex;
+                }
+
+                return a.meal_type.localeCompare(b.meal_type);
+              });
+
+              if (vm.meals.length > 0) {
+                vm.nutritionStatus = `✅ ${vm.meals.length} refeições nutricionais carregadas (plano completo da semana).`;
+              } else {
+                vm.nutritionStatus = "Nenhuma refeição encontrada no plano.";
+              }
+            } else {
+              vm.nutritionStatus = "Nenhum plano encontrado. Gere um plano primeiro.";
+            }
+          }).catch((err) => {
+            vm.nutritionStatus = err.data?.detail || "Erro ao carregar recomendações nutricionais.";
+            console.error("Erro ao carregar plano nutricional:", err);
+          }).finally(() => {
+            vm.loadingNutrition = false;
+            // Sincronizar status de consumido após carregar nutrition
+            $timeout(() => {
+              if (vm.adherence) {
+                vm.syncConsumedStatus();
+              }
+            }, 100);
+          });
+        };
+
+        // Function to extract meals from meal_plan markdown text
+        vm.extractMealsFromMealPlan = function(planText) {
+          const meals = [];
+          const lines = planText.split('\n');
+
+          let currentDay = '';
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
+            // Skip headers, separators, and non-table lines
+            if (!line.includes('|') || line.includes('---') ||
+                line.includes('Dia | Refeição') || line.includes('Kcal | Carbs') ||
+                line.includes(':---')) {
+              continue;
+            }
+
+            // Split by | and clean up parts (remove empty strings from start/end)
+            const rawParts = line.split('|').map(p => p.trim());
+            const parts = rawParts.filter(p => p !== '');
+
+            if (parts.length >= 4) {
+              // Check if first column contains a day name (starts with **)
+              const firstCol = rawParts[1] || ''; // rawParts[1] is the content between first and second |
+
+              // Update current day if found
+              if (firstCol && firstCol.startsWith('**') && firstCol.includes('FEIRA')) {
+                currentDay = firstCol.replace(/\*\*/g, '');
+              }
+
+              // Check if second column contains meal type (starts with **)
+              const secondCol = rawParts[2] || ''; // rawParts[2] is the content between second and third |
+              if (secondCol && secondCol.startsWith('**') &&
+                  (secondCol.includes('Café da manhã') || secondCol.includes('Almoço') || secondCol.includes('Jantar'))) {
+
+                const mealType = secondCol.replace(/\*\*/g, '');
+                const description = rawParts[3] || ''; // rawParts[3] is the description
+                const calories = rawParts[4] || ''; // rawParts[4] is calories
+                const carbs = rawParts[5] || ''; // rawParts[5] is carbs
+                const protein = rawParts[6] || ''; // rawParts[6] is protein
+
+                // Extract food items from description (split by periods and clean)
+                const foodItems = [];
+                if (description) {
+                  const sentences = description.split('.').map(s => s.trim()).filter(s => s && !s.includes('—'));
+                  sentences.forEach(sentence => {
+                    // Clean up the sentence (remove extra spaces, parentheses info)
+                    const cleanSentence = sentence.replace(/\s+/g, ' ').trim();
+                    if (cleanSentence && cleanSentence.length > 10) { // Only meaningful items
+                      foodItems.push({
+                        name: cleanSentence,
+                        portion: '',
+                        macros: calories ? {
+                          calories: parseInt(calories) || 0,
+                          carbs_g: parseInt(carbs) || 0,
+                          protein_g: parseInt(protein) || 0,
+                          fat_g: 0,
+                          fiber_g: 0
+                        } : null
+                      });
+                    }
+                  });
+                }
+
+                meals.push({
+                  day: currentDay,
+                  meal_type: mealType,
+                  name: description ? description.split('.')[0].substring(0, 50) + (description.length > 50 ? '...' : '') : 'Refeição',
+                  desc: description,
+                  gl: "Avaliar",
+                  glClass: "ok",
+                  availability: "Verificar inventário",
+                  macros: calories ? `${calories} kcal, ${carbs}g carboidratos, ${protein}g proteína` : "Não disponível",
+                  consumed: false,
+                  food_items: foodItems,
+                  total_nutrition: null,
+                  items: foodItems.map(item => item.name), // Simple items list
+                  time: null,
+                  time_display: null,
+                  is_detailed: true
+                });
+              }
+            }
+          }
+
+          return meals;
+        };
+
+
+        vm.showMealDetails = function(meal) {
+          if (!meal) return;
+          const mealCopy = angular.copy(meal);
+          if (!mealCopy.food_items) mealCopy.food_items = [];
+          if (!mealCopy.items) mealCopy.items = [];
+          if (!mealCopy.total_nutrition) mealCopy.total_nutrition = null;
+          vm.selectedMeal = mealCopy;
+          vm.showingSubstitutions = null;
+          vm.foodSubstitutions = [];
+          vm.selectedSubstitution = null;
+          if (!vm.selectedMeal.food_items || vm.selectedMeal.food_items.length === 0) {
+            if (vm.selectedMeal.items && vm.selectedMeal.items.length > 0) {
+              $timeout(function() {
+                vm.loadFoodItemsNutrition(vm.selectedMeal);
+              }, 100);
+            }
+          }
+        };
+
+        vm.showMealDetailsFromTimeline = function(timelineItem) {
+          let meal = null;
+          if (vm.meals && vm.meals.length > 0) {
+            meal = vm.meals.find(m => m.meal_type === timelineItem.meal_type);
+          }
+          if (meal) {
+            const mergedMeal = angular.copy(meal);
+            mergedMeal.description = timelineItem.description || meal.description || meal.desc;
+            mergedMeal.time = timelineItem.time || meal.time;
+            mergedMeal.time_display = timelineItem.time_display;
+            vm.showMealDetails(mergedMeal);
+          }
+        };
+
+        vm.closeMealDetails = function() {
+          vm.selectedMeal = null;
+          vm.showingSubstitutions = null;
+          vm.foodSubstitutions = [];
+          vm.selectedSubstitution = null;
+        };
+
+        vm.loadFoodItemsNutrition = function(meal) {
+          if (!meal || !meal.items || meal.items.length === 0) {
+            console.log("loadFoodItemsNutrition: No items to load");
+            return;
+          }
+          console.log("=== loadFoodItemsNutrition START ===");
+          console.log("Meal parameter:", meal);
+          console.log("Meal items:", meal.items);
+          console.log("vm.selectedMeal before:", vm.selectedMeal);
+
+          const foodItems = [];
+          let loaded = 0;
+          const total = meal.items.length;
+
+          // Initialize food_items array immediately so modal can display
+          if (!vm.selectedMeal) return;
+          if (!vm.selectedMeal.food_items) vm.selectedMeal.food_items = [];
+
+          console.log("Starting to load nutrition for", total, "items");
+
+          meal.items.forEach((item, index) => {
+            // Extract food name (remove portion info if present)
+            const foodName = item.split('(')[0].split(',')[0].trim();
+            console.log(`[${index + 1}/${total}] Loading nutrition for: ${foodName}`);
+
+            $http.get(`/api/food/${encodeURIComponent(foodName)}/nutrition`).then((res) => {
+              if (res.data && res.data.nutrition) {
+                const foodItem = {
+                  name: res.data.food_name || foodName,
+                  portion: item.includes('(') ? item.match(/\(([^)]+)\)/)?.[1] || '100g' : '100g',
+                  macros: {
+                    calories: (res.data.nutrition.carbohydrate_g || 0) * 4 + (res.data.nutrition.protein_g || 0) * 4 + (res.data.nutrition.fat_g || 0) * 9,
+                    carbs_g: res.data.nutrition.carbohydrate_g || 0,
+                    protein_g: res.data.nutrition.protein_g || 0,
+                    fat_g: res.data.nutrition.fat_g || 0,
+                    fiber_g: res.data.nutrition.fiber_g || 0
+                  },
+                  glycemic_index: res.data.nutrition.glycemic_index || null,
+                  glycemic_load: res.data.nutrition.glycemic_load || null
+                };
+                foodItems.push(foodItem);
+                console.log(`✅ Nutrition loaded for ${foodName}: ${foodItem.macros.calories} kcal`);
+              } else {
+                // Add item without detailed nutrition
+                foodItems.push({
+                  name: foodName,
+                  portion: item.includes('(') ? item.match(/\(([^)]+)\)/)?.[1] || '100g' : '100g',
+                  macros: null,
+                  glycemic_index: null,
+                  glycemic_load: null
+                });
+                console.log(`⚠️ No nutrition data for ${foodName}, added without details`);
+              }
+              loaded++;
+              if (loaded === total) {
+                // Force Angular to detect the change by creating a new object reference
+                $timeout(function() {
+                  // Create a new object to force Angular to detect the change
+                  const updatedMeal = angular.copy(vm.selectedMeal);
+                  updatedMeal.food_items = foodItems;
+                  vm.selectedMeal = updatedMeal;
+                  console.log(`✅ All food items loaded: ${foodItems.length} items`);
+                  console.log("Food items array:", vm.selectedMeal.food_items);
+                  // Calculate total nutrition
+                  vm.calculateTotalNutrition();
+                  // Force Angular digest cycle
+                  if (!$scope.$$phase && !$scope.$root.$$phase) {
+                    $scope.$apply();
+                  }
+                }, 0);
+              }
+            }).catch((err) => {
+              console.warn(`❌ Error loading nutrition for ${foodName}:`, err.status || err.message);
+              // Add item without detailed nutrition
+              foodItems.push({
+                name: foodName,
+                portion: item.includes('(') ? item.match(/\(([^)]+)\)/)?.[1] || '100g' : '100g',
+                macros: null,
+                glycemic_index: null,
+                glycemic_load: null
+              });
+              loaded++;
+              if (loaded === total) {
+                // Force Angular to detect the change by creating a new object reference
+                $timeout(function() {
+                  // Create a new object to force Angular to detect the change
+                  const updatedMeal = angular.copy(vm.selectedMeal);
+                  updatedMeal.food_items = foodItems;
+                  vm.selectedMeal = updatedMeal;
+                  vm.calculateTotalNutrition();
+                  console.log(`✅ All food items processed (some may be without nutrition data): ${foodItems.length} items`);
+                  console.log("Food items array:", vm.selectedMeal.food_items);
+                  // Force Angular digest cycle
+                  if (!$scope.$$phase && !$scope.$root.$$phase) {
+                    $scope.$apply();
+                  }
+                }, 0);
+              }
+            });
+          });
+        };
+
+        vm.calculateTotalNutrition = function() {
+          if (!vm.selectedMeal || !vm.selectedMeal.food_items) return;
+          const total = { calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0, fiber_g: 0 };
+          vm.selectedMeal.food_items.forEach(food => {
+            if (food.macros) {
+              total.calories += food.macros.calories || 0;
+              total.carbs_g += food.macros.carbs_g || 0;
+              total.protein_g += food.macros.protein_g || 0;
+              total.fat_g += food.macros.fat_g || 0;
+              total.fiber_g += food.macros.fiber_g || 0;
+            }
+          });
+          vm.selectedMeal.total_nutrition = total;
+        };
+
+        vm.showSubstitutions = function(food, index) {
+          if (vm.showingSubstitutions === index) {
+            vm.showingSubstitutions = null;
+            vm.foodSubstitutions = [];
+            vm.selectedSubstitution = null;
+            return;
+          }
+          vm.showingSubstitutions = index;
+          vm.loadingSubstitutions = true;
+          vm.foodSubstitutions = [];
+          vm.selectedSubstitution = null;
+          const restrictions = vm.user.restrictions || [];
+          $http.post("/api/food/substitutions", {
+            food_name: food.name,
+            max_results: 5,
+            restrictions: restrictions
+          }).then((res) => {
+            if (res.data && res.data.substitutions) {
+              vm.foodSubstitutions = res.data.substitutions;
+            }
+          }).catch((err) => {
+            console.error("Error loading substitutions:", err);
+          }).finally(() => {
+            vm.loadingSubstitutions = false;
+          });
+        };
+
+        vm.selectSubstitution = function(substitution, index) {
+          vm.selectedSubstitution = index;
+        };
+
+        vm.replaceFoodItem = function(originalFood, substitutionIndex) {
+          if (substitutionIndex === null || !vm.foodSubstitutions[substitutionIndex]) return;
+          const substitution = vm.foodSubstitutions[substitutionIndex];
+          const foodIndex = vm.selectedMeal.food_items.findIndex(f => f.name === originalFood.name);
+          if (foodIndex === -1) return;
+          vm.selectedMeal.food_items[foodIndex] = {
+            name: substitution.name,
+            portion: originalFood.portion,
+            macros: {
+              calories: (substitution.nutrition?.carbohydrate_g || 0) * 4 + (substitution.nutrition?.protein_g || 0) * 4 + (substitution.nutrition?.fat_g || 0) * 9,
+              carbs_g: substitution.nutrition?.carbohydrate_g || 0,
+              protein_g: substitution.nutrition?.protein_g || 0,
+              fat_g: substitution.nutrition?.fat_g || 0,
+              fiber_g: substitution.nutrition?.fiber_g || 0
+            },
+            glycemic_index: substitution.nutrition?.glycemic_index || null,
+            glycemic_load: substitution.nutrition?.glycemic_load || null
+          };
+          vm.calculateTotalNutrition();
+          const mealIndex = vm.meals.findIndex(m => m.name === vm.selectedMeal.name);
+          if (mealIndex !== -1) {
+            vm.meals[mealIndex] = angular.copy(vm.selectedMeal);
+          }
+          vm.showingSubstitutions = null;
+          vm.foodSubstitutions = [];
+          vm.selectedSubstitution = null;
+          alert(`Alimento substituído com sucesso! ${originalFood.name} foi substituído por ${substitution.name}.`);
+        };
+
+        vm.markMealConsumedFromModal = function() {
+          if (vm.selectedMeal) {
+            vm.markMealConsumedFromList(vm.selectedMeal);
+          }
+        };
+
+        vm.updateMealTime = function(meal) {
+          const timelineItem = vm.timeline.find(item => item.meal_type === meal.meal_type);
+          if (timelineItem) {
+            timelineItem.time = meal.time;
+            timelineItem.time_display = formatTime(meal.time);
+            timelineItem.label = `${timelineItem.time_display} • ${meal.meal_type}`;
+          }
+        };
+
+        vm.updateMealInterval = function(meal) {
+          if (meal.timeStart && meal.timeEnd) {
+            const timelineItem = vm.timeline.find(item => item.meal_type === meal.meal_type);
+            if (timelineItem) {
+              timelineItem.time = meal.timeStart;
+              timelineItem.time_display = formatTime(meal.timeStart);
+              timelineItem.time_interval = `${meal.timeStart}-${meal.timeEnd}`;
+              timelineItem.label = `${timelineItem.time_display} • ${meal.meal_type}`;
+            }
+          }
+        };
+
+        vm.updateGlucoseChart = function(readings) {
+          if (!readings || readings.length === 0) return;
+          const sorted = readings.slice().sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          const labels = sorted.map(r => {
+            const date = new Date(r.timestamp);
+            return date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+          });
+          const values = sorted.map(r => r.value_mg_dl);
+          const ctx = document.getElementById("glucoseChart");
+          if (!ctx) return;
+          if (vm.glucoseChart) vm.glucoseChart.destroy();
+          vm.glucoseChart = new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: labels,
+              datasets: [{
+                label: "Glicose (mg/dL)",
+                data: values,
+                borderColor: "#3fb7ff",
+                backgroundColor: "rgba(63, 183, 255, 0.1)",
+                tension: 0.4,
+                fill: true
+              }, {
+                label: "Faixa Alvo (70-140)",
+                data: Array(labels.length).fill(140),
+                borderColor: "#2f7a36",
+                borderDash: [5, 5],
+                fill: false
+              }, {
+                label: "Limite Inferior (70)",
+                data: Array(labels.length).fill(70),
+                borderColor: "#2f7a36",
+                borderDash: [5, 5],
+                fill: false
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: { y: { beginAtZero: false, min: 50, max: 250 } }
+            }
+          });
+        };
+
+        function formatTime(timeStr) {
+          if (!timeStr) return '8:00 AM';
+          const [hours, minutes] = timeStr.split(':');
+          const h = parseInt(hours);
+          const m = minutes || '00';
+          const period = h >= 12 ? 'PM' : 'AM';
+          const displayHour = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+          return `${displayHour}:${m} ${period}`;
+        }
+
+        // Load user data
+        vm.loadUser = function() {
+          const authUserId = Number(localStorage.getItem("session_user_id"));
+          if (!authUserId) {
+            vm.userStatus = "Não autenticado. Faça login.";
+            return;
+          }
+
+          // If we don't have userId yet, get it from auth_user_id
+          if (!vm.userId) {
+            $http.get(`/api/users/by-auth/${authUserId}`).then((res) => {
+              if (res.data && res.data.id) {
+                vm.userId = res.data.id;
+                vm.loadUserData();
+              } else {
+                vm.userStatus = "Perfil não encontrado. Preencha seus dados.";
+              }
+            }).catch((err) => {
+              // If 404, profile doesn't exist yet - that's ok, user can create it
+              if (err.status === 404) {
+                vm.userStatus = "Perfil não encontrado. Preencha seus dados para criar um perfil.";
+              } else {
+                vm.userStatus = "Erro ao carregar perfil: " + (err.data?.detail || "Erro desconhecido");
+                console.error("Erro ao carregar perfil:", err);
+              }
+            });
+            return;
+          }
+          vm.loadUserData();
+        };
+
+        vm.loadUserData = function() {
+          $http.get(`/api/users/${vm.userId}`).then((res) => {
+            const profile = res.data.profile || {};
+            // Merge with empty structure to ensure all fields exist
+            vm.user = {
+              full_name: profile.full_name || null,
+              age: profile.age || null,
+              health_metrics: {
+                diabetes_type: profile.health_metrics?.diabetes_type || null,
+                glucose_levels: profile.health_metrics?.glucose_levels || null,
+                weight: profile.health_metrics?.weight || null,
+                height: profile.health_metrics?.height || null,
+                bmi: profile.health_metrics?.bmi || null,
+                blood_pressure: profile.health_metrics?.blood_pressure || null,
+                other_conditions: profile.health_metrics?.other_conditions || []
+              },
+              preferences: {
+                cuisine: profile.preferences?.cuisine || null,
+                region: profile.preferences?.region || null,
+                likes: profile.preferences?.likes || [],
+                dislikes: profile.preferences?.dislikes || [],
+                dietary_style: profile.preferences?.dietary_style || null
+              },
+              goals: profile.goals || [],
+              restrictions: profile.restrictions || [],
+              region: profile.region || null,
+              inventory: profile.inventory || [],
+              glucose_readings: profile.glucose_readings || []
+            };
+            // Initialize text fields from arrays
+            vm.likesText = (vm.user.preferences.likes || []).join(", ");
+            vm.dislikesText = (vm.user.preferences.dislikes || []).join(", ");
+            vm.restrictionsText = (vm.user.restrictions || []).join(", ");
+            vm.goalsText = (vm.user.goals || []).join(", ");
+            vm.otherConditionsText = (vm.user.health_metrics.other_conditions || []).join(", ");
+            vm.allergiesText = (vm.user.allergies || []).join(", ");
+            vm.userStatus = "Perfil carregado com sucesso. Você pode editar os dados abaixo.";
+            vm.loadGlucoseReadings();
+            vm.loadGlucoseStats();
+
+            // Load data for current active tab
+            if (vm.activeTab === "daily-plan") {
+              vm.loadExistingPlan();
+            } else if (vm.activeTab === "nutrition" && (!vm.meals || vm.meals.length === 0)) {
+              vm.loadNutritionPlan();
+            } else if (vm.activeTab === "glucose-monitor") {
+              vm.loadGlucoseReadings();
+              vm.loadGlucoseStats();
+            }
+
+            // Always try to load existing plan data regardless of current tab
+            $timeout(function() {
+              vm.loadExistingPlan();
+            }, 500);
+          }).catch(() => {
+            vm.userStatus = "Erro ao carregar perfil.";
+          });
+        };
+
+        // Initialize app on DOM ready
+        $timeout(function() {
+          console.log("✅ Controller initialized, loading user data...");
+          vm.loadUser();
+          // Also try to load plan data immediately for better UX
+          $timeout(function() {
+            if (vm.userId && vm.activeTab === 'daily-plan') {
+              vm.loadExistingPlan();
+            }
+          }, 1000);
+        }, 100);
+      });
+
+      // Verify Angular initialization after DOM is ready
+      angular.element(document).ready(function() {
+        console.log("✅ Angular DOM ready");
+        try {
+          const bodyElement = angular.element(document.querySelector("body"));
+          const scope = bodyElement.scope();
+          if (scope) {
+            console.log("✅ Angular scope encontrado");
+            console.log("✅ vm disponível:", typeof scope.vm !== "undefined");
+            if (scope.vm) {
+              console.log("✅ vm.showMealDetails disponível:", typeof scope.vm.showMealDetails === "function");
+              console.log("✅ vm.meals disponível:", Array.isArray(scope.vm.meals));
+            }
+          } else {
+            console.error("❌ Angular scope NÃO encontrado!");
+          }
+        } catch (e) {
+          console.error("❌ Erro ao verificar scope:", e);
+        }
+      });
+    </script>
+
+    <!-- Script adicional para verificações de debug -->
+    <script>
+      // Verify Angular initialization after DOM is ready
+      angular.element(document).ready(function() {
+        console.log("✅ Angular DOM ready");
+        try {
+          const bodyElement = angular.element(document.querySelector("body"));
+          const scope = bodyElement.scope();
+          if (scope) {
+            console.log("✅ Angular scope encontrado");
+            console.log("✅ vm disponível:", typeof scope.vm !== "undefined");
+            if (scope.vm) {
+              console.log("✅ vm.showMealDetails disponível:", typeof scope.vm.showMealDetails === "function");
+              console.log("✅ vm.meals disponível:", Array.isArray(scope.vm.meals));
+            }
+          } else {
+            console.error("❌ Angular scope NÃO encontrado!");
+          }
+        } catch (e) {
+          console.error("❌ Erro ao verificar scope:", e);
+        }
+      });
+    </script>
+  </body>
+</html>
+
+      

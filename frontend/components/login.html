@@ -1,0 +1,89 @@
+<div class="auth-container">
+  <div class="logo">
+    <div class="logo-title">DiabetesAI Care</div>
+    <div class="logo-subtitle">Your Personal Health Assistant</div>
+  </div>
+  
+  <div class="form-title">Entrar</div>
+  <div class="form-subtitle">Use sua conta para continuar</div>
+  
+  <form ng-submit="vm.login()">
+    <div class="form-group">
+      <label for="email" class="required">Email</label>
+      <input 
+        id="email"
+        class="input" 
+        type="email" 
+        placeholder="seu@email.com" 
+        ng-model="vm.auth.email" 
+        required 
+        autocomplete="email"
+      />
+    </div>
+    
+    <div class="form-group">
+      <label for="password" class="required">Senha</label>
+      <input 
+        id="password"
+        class="input" 
+        type="password" 
+        placeholder="Sua senha" 
+        ng-model="vm.auth.password" 
+        required 
+        autocomplete="current-password"
+      />
+    </div>
+    
+    <button 
+      type="submit"
+      class="btn-primary" 
+      ng-disabled="vm.authLoading"
+    >
+      {{vm.authLoading ? 'Entrando...' : 'Entrar'}}
+    </button>
+  </form>
+  
+  <a href="/register" class="link">Não tem uma conta? Registre-se</a>
+  <a href="#" class="link" ng-click="vm.showReset=true">Esqueci a senha</a>
+  <a href="/" class="link" style="margin-top: 8px;">Voltar ao início</a>
+  
+  <div class="status-message" ng-class="vm.statusClass" ng-if="vm.authStatus">
+    {{vm.authStatus}}
+  </div>
+  
+  <div ng-if="vm.showReset" style="margin-top: 24px; padding-top: 24px; border-top: 1.5px solid var(--border);">
+    <div class="form-title" style="font-size: 18px; margin-bottom: 16px;">Resetar senha</div>
+    <div class="form-group">
+      <label for="reset-email">Email</label>
+      <input 
+        id="reset-email"
+        class="input" 
+        type="email" 
+        placeholder="seu@email.com" 
+        ng-model="vm.reset.email" 
+      />
+    </div>
+    <button 
+      class="btn-secondary" 
+      ng-click="vm.resetPassword()" 
+      ng-disabled="vm.authLoading"
+    >
+      {{vm.authLoading ? 'Enviando...' : 'Enviar link de recuperação'}}
+    </button>
+    <button 
+      class="btn-secondary" 
+      ng-click="vm.showReset=false" 
+      style="margin-top: 8px;"
+    >
+      Cancelar
+    </button>
+    <div class="status-message" ng-class="vm.resetStatusClass" ng-if="vm.resetStatus" style="margin-top: 12px;">
+      {{vm.resetStatus}}
+    </div>
+  </div>
+</div>
+
+
+
+
+

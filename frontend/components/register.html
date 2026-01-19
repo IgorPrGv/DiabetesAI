@@ -1,0 +1,82 @@
+<div class="auth-container">
+  <div class="logo">
+    <div class="logo-title">DiabetesAI Care</div>
+    <div class="logo-subtitle">Your Personal Health Assistant</div>
+  </div>
+  
+  <div class="form-title">Criar conta</div>
+  <div class="form-subtitle">Preencha os dados para começar sua jornada de saúde</div>
+  
+  <form ng-submit="vm.registerUser()">
+    <div class="form-group">
+      <label for="email" class="required">Email</label>
+      <input 
+        id="email"
+        class="input" 
+        type="email" 
+        placeholder="seu@email.com" 
+        ng-model="vm.register.email" 
+        required 
+        autocomplete="email"
+      />
+    </div>
+    
+    <div class="form-group">
+      <label for="password" class="required">Senha</label>
+      <input 
+        id="password"
+        class="input" 
+        type="password" 
+        placeholder="Mínimo 6 caracteres" 
+        ng-model="vm.register.password" 
+        required 
+        autocomplete="new-password"
+        minlength="6"
+      />
+      <div class="password-hint">A senha deve ter pelo menos 6 caracteres</div>
+    </div>
+    
+    <div class="form-group">
+      <label for="confirm-password" class="required">Confirmar senha</label>
+      <input 
+        id="confirm-password"
+        class="input" 
+        type="password" 
+        placeholder="Digite a senha novamente" 
+        ng-model="vm.register.confirmPassword" 
+        required 
+        autocomplete="new-password"
+      />
+    </div>
+    
+    <button 
+      type="submit"
+      class="btn-primary" 
+      ng-disabled="vm.authLoading || vm.register.password !== vm.register.confirmPassword || vm.register.password.length < 6"
+    >
+      {{vm.authLoading ? 'Criando conta...' : 'Criar conta'}}
+    </button>
+  </form>
+  
+  <a href="/login" class="link">Já tem uma conta? Entrar</a>
+  <a href="/" class="link" style="margin-top: 8px;">Voltar ao início</a>
+  
+  <div class="status-message" ng-class="vm.statusClass" ng-if="vm.registerStatus">
+    {{vm.registerStatus}}
+  </div>
+  
+  <div ng-if="vm.register.password && vm.register.confirmPassword && vm.register.password !== vm.register.confirmPassword" 
+       class="password-mismatch">
+    As senhas não coincidem
+  </div>
+  
+  <div ng-if="vm.register.password && vm.register.password.length < 6" 
+       class="password-mismatch">
+    A senha deve ter pelo menos 6 caracteres
+  </div>
+</div>
+
+
+
+
+

@@ -1,0 +1,37 @@
+{
+  "meal_history": [
+    "Café da manhã: Pão integral com queijo, café sem açúcar",
+    "Almoço: Arroz, feijão, frango grelhado, salada",
+    "Jantar: Sopa de legumes"
+  ],
+  "health_metrics": {
+    "diabetes_type": "Type 2",
+    "glucose_levels": "Elevated (140-180 mg/dL)",
+    "weight": "85 kg",
+    "height": "1.75 m"
+  },
+  "preferences": {
+    "cuisine": "Brasileira",
+    "region": "Sudeste",
+    "likes": ["feijão", "frutas", "vegetais", "carne"],
+    "dislikes": ["comida muito doce"]
+  },
+  "goals": [
+    "Controlar glicemia",
+    "Perder peso moderadamente",
+    "Melhorar saúde cardiovascular"
+  ],
+  "restrictions": [
+    "Diabetes tipo 2",
+    "Limitar carboidratos refinados",
+    "Evitar açúcar adicionado"
+  ],
+  "region": "Sudeste brasileiro",
+  "inventory": ["arroz integral", "feijão", "frango", "legumes"],
+  "glucose_readings": [
+    {"timestamp": "2026-01-10T08:00:00", "value_mg_dl": 135},
+    {"timestamp": "2026-01-10T12:00:00", "value_mg_dl": 190},
+    {"timestamp": "2026-01-10T18:00:00", "value_mg_dl": 160}
+  ]
+}
+

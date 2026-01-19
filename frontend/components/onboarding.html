@@ -1,0 +1,193 @@
+<div class="onboarding-container">
+  <div class="onboarding-header">
+    <div class="onboarding-title">Bem-vindo ao DiabetesAI Care!</div>
+    <div class="onboarding-subtitle">Complete seu perfil para começar a receber recomendações personalizadas</div>
+  </div>
+
+  <div class="progress-bar">
+    <div class="progress-fill" ng-style="{width: vm.progressPercentage + '%'}"></div>
+  </div>
+
+  <form ng-submit="vm.saveProfile()">
+    <!-- Basic Information -->
+    <div class="section-card">
+      <div class="section-title">Informações Básicas</div>
+      <div class="section-subtitle">Dados pessoais essenciais</div>
+      <div class="form-row">
+        <div>
+          <label class="required-label">Nome Completo</label>
+          <input class="input" placeholder="Ex: João Silva" ng-model="vm.user.full_name" required />
+          <div class="field-hint">Formato: Nome e sobrenome</div>
+        </div>
+        <div>
+          <label>Idade</label>
+          <input class="input" type="number" placeholder="Ex: 45" ng-model="vm.user.age" min="1" max="120" />
+          <div class="field-hint">Formato: Número inteiro (anos)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Anthropometric Data -->
+    <div class="section-card">
+      <div class="section-title">Dados Antropométricos</div>
+      <div class="section-subtitle">Informações sobre peso e altura</div>
+      <div class="form-row">
+        <div>
+          <label class="required-label">Peso (kg)</label>
+          <input class="input" type="number" placeholder="Ex: 75" ng-model="vm.user.health_metrics.weight" min="30" max="300" step="0.1" required />
+          <div class="field-hint">Formato: Número em quilogramas (kg). Ex: 75 ou 75.5</div>
+        </div>
+        <div>
+          <label class="required-label">Altura (cm)</label>
+          <input class="input" type="number" placeholder="Ex: 165" ng-model="vm.user.health_metrics.height" min="100" max="250" step="0.1" required />
+          <div class="field-hint">Formato: Número em centímetros (cm). Ex: 165 ou 175.5</div>
+        </div>
+        <div>
+          <label>IMC</label>
+          <input class="input" type="number" placeholder="IMC" ng-model="vm.user.health_metrics.bmi" readonly />
+          <div class="field-hint">Calculado automaticamente</div>
+        </div>
+      </div>
+      <div class="helper-text">IMC calculado automaticamente: {{vm.calculateBMI()}}</div>
+    </div>
+
+    <!-- Clinical Data -->
+    <div class="section-card">
+      <div class="section-title">Dados Clínicos</div>
+      <div class="section-subtitle">Informações sobre sua condição de saúde</div>
+      <div class="form-row">
+        <div>
+          <label class="required-label">Tipo de Diabetes</label>
+          <input class="input" placeholder="Ex: Type 2 ou Diabetes tipo 2" ng-model="vm.user.health_metrics.diabetes_type" required />
+          <div class="field-hint">Formato: Texto. Ex: "Type 2", "Diabetes tipo 2", "Tipo 1"</div>
+        </div>
+        <div>
+          <label>Níveis de Glicose</label>
+          <input class="input" placeholder="Ex: 140-180 mg/dL ou Normal" ng-model="vm.user.health_metrics.glucose_levels" />
+          <div class="field-hint">Formato: Texto ou faixa. Ex: "140-180 mg/dL", "Normal", "Elevado"</div>
+        </div>
+        <div>
+          <label>Pressão Arterial</label>
+          <input class="input" placeholder="Ex: 120/80 mmHg" ng-model="vm.user.health_metrics.blood_pressure" />
+          <div class="field-hint">Formato: Sistólica/Diastólica. Ex: "120/80 mmHg", "130/85"</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex: 1;">
+          <label>Outras Condições</label>
+          <input class="input" placeholder="Ex: Hipertensão, Colesterol alto" ng-model="vm.otherConditionsText" />
+          <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Hipertensão, Colesterol alto, Obesidade"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cultural Preferences -->
+    <div class="section-card">
+      <div class="section-title">Preferências Culturais</div>
+      <div class="section-subtitle">Ajude-nos a personalizar suas refeições</div>
+      <div class="form-row">
+        <div>
+          <label class="required-label">Culinária Preferida</label>
+          <input class="input" placeholder="Ex: Brasileira, Italiana, Mediterrânea" ng-model="vm.user.preferences.cuisine" required />
+          <div class="field-hint">Formato: Texto. Ex: "Brasileira", "Italiana", "Mediterrânea", "Asiática"</div>
+        </div>
+        <div>
+          <label class="required-label">Região</label>
+          <input class="input" placeholder="Ex: Sudeste, Nordeste, Sul" ng-model="vm.user.preferences.region" required />
+          <div class="field-hint">Formato: Texto. Ex: "Sudeste", "Nordeste", "Sul", "Norte", "Centro-Oeste"</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex: 1;">
+          <label>Alimentos que gosta</label>
+          <input class="input" placeholder="Ex: Frango, Peixe, Arroz integral, Legumes" ng-model="vm.likesText" />
+          <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Frango, Peixe, Arroz integral, Legumes"</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex: 1;">
+          <label>Alimentos que não gosta</label>
+          <input class="input" placeholder="Ex: Carne vermelha, Frituras, Doces" ng-model="vm.dislikesText" />
+          <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Carne vermelha, Frituras, Doces"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dietary Restrictions -->
+    <div class="section-card">
+      <div class="section-title">Restrições Alimentares</div>
+      <div class="section-subtitle">Informe suas restrições alimentares</div>
+      <div class="form-row">
+        <div style="flex: 1;">
+          <label>Restrições</label>
+          <input class="input" placeholder="Ex: Sem glúten, Sem lactose, Vegetariano" ng-model="vm.restrictionsText" />
+          <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Sem glúten, Sem lactose, Vegetariano"</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex: 1;">
+          <label>Alergias</label>
+          <input class="input" placeholder="Ex: Amendoim, Frutos do mar, Ovos" ng-model="vm.allergiesText" />
+          <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Amendoim, Frutos do mar, Ovos"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Goals -->
+    <div class="section-card">
+      <div class="section-title">Metas</div>
+      <div class="section-subtitle">O que você deseja alcançar?</div>
+      <div class="form-row">
+        <div style="flex: 1;">
+          <label>Metas</label>
+          <input class="input" placeholder="Ex: Controlar glicemia, Perder peso, Manter peso" ng-model="vm.goalsText" />
+          <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Controlar glicemia, Perder peso, Manter peso"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory -->
+    <div class="section-card">
+      <div class="section-title">Inventário Doméstico</div>
+      <div class="section-subtitle">Quais alimentos você tem em casa?</div>
+      <div class="form-row">
+        <div style="flex: 1;">
+          <label>Alimentos Disponíveis</label>
+          <input class="input" placeholder="Ex: Arroz, Feijão, Frango, Vegetais" ng-model="vm.inventoryText" />
+          <div class="field-hint">Formato: Lista separada por vírgula. Ex: "Arroz, Feijão, Frango, Vegetais, Frutas"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="section-card">
+      <div class="section-title">Resumo dos Campos Obrigatórios</div>
+      <div class="summary-box">
+        <div class="summary-box-title">Certifique-se de preencher:</div>
+        <ul>
+          <li>✓ Nome Completo</li>
+          <li>✓ Peso (kg)</li>
+          <li>✓ Altura (cm)</li>
+          <li>✓ Tipo de Diabetes</li>
+          <li>✓ Culinária Preferida</li>
+          <li>✓ Região</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="section-card" style="text-align: center;">
+      <button type="submit" class="btn-primary" ng-disabled="vm.saving">
+        {{vm.saving ? 'Salvando...' : 'Salvar e Continuar'}}
+      </button>
+      <div class="status-message" ng-class="vm.statusClass" ng-if="vm.statusMessage" style="margin-top: 16px;">
+        {{vm.statusMessage}}
+      </div>
+    </div>
+  </form>
+</div>
+
+
+
+
+

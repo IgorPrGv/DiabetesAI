@@ -138,3 +138,4 @@ echo -e "   API Docs: http://localhost:8000/docs"
 
 echo -e "\n${GREEN}✅ Teste rápido concluído!${NC}"
 echo -e "${BLUE}========================================${NC}"
+

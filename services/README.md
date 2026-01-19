@@ -78,3 +78,4 @@ python -c "from services.nutrition_service import NutritionService; svc = Nutrit
 - Comunicação via FastAPI com validação Pydantic
 - Cache Redis para performance (opcional)
 - Rate limiting integrado para chamadas LLM
+

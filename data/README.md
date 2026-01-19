@@ -192,3 +192,4 @@ find backups/ -name "*.db" -mtime +30 -delete
 - **Testes completos** após atualização de bases
 - **Versionamento** de mudanças nas bases nutricionais
 - **Documentação** de fontes e metodologias
+

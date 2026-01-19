@@ -276,3 +276,4 @@ angular.element(document.body).injector().get('$rootScope').$apply();
 // Verificar controllers
 console.log('Controllers loaded:', angular.element(document.body).controller());
 ```
+

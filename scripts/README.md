@@ -124,3 +124,4 @@ Para debug verbose:
 ```bash
 DEBUG=1 ./scripts/start_server.sh
 ```
+

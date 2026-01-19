@@ -204,3 +204,4 @@ python -m pytest tests/
 # Restore
 python scripts/restore_database.py backup_file.db
 ```
+

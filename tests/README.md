@@ -216,3 +216,4 @@ def test_nova_funcionalidade():
 - **Backend**: 80% coverage mínimo
 - **API**: Todos os endpoints testados
 - **Serviços**: Casos de erro e sucesso
+

@@ -118,20 +118,29 @@ def init_db() -> None:
         logger.info("Initializing database...")
         engine = _engine()
 
-        # Create all tables
+        # Create all tables (works for both SQLite and PostgreSQL)
         Base.metadata.create_all(engine)
 
-        # Verify database file was created
-        if DATABASE_FILE.exists():
-            logger.info(f"Database initialized successfully at: {DATABASE_FILE}")
-            logger.info(f"Database file size: {DATABASE_FILE.stat().st_size} bytes")
+        # ✅ Only verify file existence for SQLite
+        if IS_SQLITE:
+            if DATABASE_FILE.exists():
+                logger.info(f"✅ SQLite database initialized successfully at: {DATABASE_FILE}")
+                logger.info(f"Database file size: {DATABASE_FILE.stat().st_size} bytes")
+            else:
+                logger.error(f"❌ SQLite database file was not created at: {DATABASE_FILE}")
+                raise FileNotFoundError(f"SQLite database file not found: {DATABASE_FILE}")
+        elif IS_POSTGRESQL:
+            # ✅ For PostgreSQL, validate connectivity instead of checking a file
+            with Session(engine) as session:
+                session.execute(text("SELECT 1"))
+            logger.info("✅ PostgreSQL database initialized successfully (connectivity OK).")
         else:
-            logger.error(f"Database file was not created at: {DATABASE_FILE}")
-            raise FileNotFoundError(f"Database file not found: {DATABASE_FILE}")
+            logger.warning(f"⚠️ Database initialized, but type is unknown for URL: {DATABASE_URL}")
 
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         raise
+
 
 
 def save_plan(request_payload: Dict[str, Any], response_payload: Dict[str, Any]) -> int:

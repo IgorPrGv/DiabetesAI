@@ -61,7 +61,7 @@ personal_model_agent = Agent(
     verbose=True,
     allow_delegation=False,
     llm=llm,
-    max_iter=3,  # Limit iterations
+    max_iter=1,  # Limit iterations
 )
 
 # Agent 2: Diabetic Specialist
@@ -74,7 +74,7 @@ diabetic_specialist_agent = Agent(
     verbose=True,
     allow_delegation=False,
     llm=llm,
-    max_iter=2,
+    max_iter=1,
 )
 
 # Agent 3: Causal Inference Specialist
@@ -87,7 +87,7 @@ causal_inference_agent = Agent(
     verbose=True,
     allow_delegation=False,
     llm=llm,
-    max_iter=2,  # Limit iterations
+    max_iter=1,  # Limit iterations
 )
 
 # Agent 4: Nutritional Information Retriever
@@ -100,7 +100,7 @@ nutritional_retriever_agent = Agent(
     verbose=True,
     allow_delegation=False,
     llm=llm,
-    max_iter=2,  # Limit iterations
+    max_iter=1,  # Limit iterations
 )
 
 # Agent 5: Prompt Structuring Specialist
@@ -113,7 +113,7 @@ prompt_structured_agent = Agent(
     verbose=True,
     allow_delegation=False,
     llm=llm,
-    max_iter=2,  # Limit iterations
+    max_iter=1,  # Limit iterations
 )
 
 # Agent 6: Meal Plan Synthesizer
@@ -133,7 +133,7 @@ meal_plan_synthesizer_agent = Agent(
     verbose=False,  # Reduzido para melhorar performance
     allow_delegation=True,  # Habilitado para melhor colaboração
     llm=llm,
-    max_iter=2,  # Reduzido para economizar quota
+    max_iter=1,  # Reduzido para economizar quota
 )
 
 # Agent 7: Judge/Orchestrator
@@ -146,7 +146,7 @@ judge_agent = Agent(
     verbose=False,  # Reduzido para performance
     allow_delegation=True,  # Habilitado para melhor coordenação
     llm=llm,
-    max_iter=2,
+    max_iter=1,
 )
 
 # Agent 8: Plan JSON Formatter
@@ -159,7 +159,7 @@ plan_json_agent = Agent(
     verbose=True,
     allow_delegation=False,
     llm=llm,
-    max_iter=2,
+    max_iter=1,
 )
 
 
@@ -339,7 +339,7 @@ def create_meal_planning_tasks(user_query: dict):
     
     # Task 6: Generate Meal Plan (uses structured prompt from previous task)
     meal_plan_generation_task = Task(
-        description=f"""Generate a 5-day meal plan for a person with type 2 diabetes.
+        description=f"""Generate a 7-day meal plan (SEGUNDA-FEIRA to DOMINGO) for a person with type 2 diabetes.
         Use the structured prompt from the previous task as primary context. If there
         is any conflict, follow the structured prompt.
         
@@ -384,6 +384,12 @@ def create_meal_planning_tasks(user_query: dict):
         SEXTA-FEIRA:
         [continue...]
         
+        SÁBADO:
+        [continue...]
+
+        DOMINGO:
+        [continue...]
+
         RULES OBRIGATÓRIAS:
         1. Use Brazilian foods (arroz, feijão, frutas, vegetais, carnes magras)
         2. Low glycemic index foods (<55)
@@ -392,13 +398,13 @@ def create_meal_planning_tasks(user_query: dict):
         5. SEMPRE incluir porções em GRAMAS para cada alimento (ex: "120g de arroz", "100g de frango")
         6. Varied foods across days - NÃO repetir os mesmos alimentos em dias consecutivos
         7. NÃO repetir a mesma refeição exata em dias diferentes
-        8. Calorias totais diárias: 1200-1800 kcal (distribuir entre refeições)
+        8. Calorias totais diárias: de acordo com a altura, o peso do usuário, o objetivo do usuário e as restrições do usuário.
         9. Cada refeição deve ter alimentos diferentes dos outros dias
         10. Especificar claramente: nome do alimento + quantidade em gramas (ex: "Arroz integral cozido (120g)")
         
-        Generate the complete plan NOW.""",
+        Generate the complete 7-day plan NOW.""",
         agent=meal_plan_synthesizer_agent,
-        expected_output="Complete 5-day meal plan (Monday-Friday) with breakfast, lunch, dinner for each day, including specific foods, portions, and nutritional information appropriate for type 2 diabetes.",
+        expected_output="Complete 7-day meal plan (SEGUNDA-FEIRA to DOMINGO) with breakfast, lunch, dinner for each day, including specific foods, portions in grams with household measures, and full nutritional information appropriate for type 2 diabetes.",
         context=[prompt_structuring_task],
     )
 
@@ -431,11 +437,12 @@ def create_meal_planning_tasks(user_query: dict):
 
     # Task 8: Format Final Plan as JSON (schema for frontend/storage)
     plan_json_task = Task(
-        description="""Convert the final plan into JSON only (no extra text).
+        description="""Converta o plano final em JSON apenas (sem texto extra).
 
-        IMPORTANT: Include SPECIFIC TIMES for each meal and event.
+        CRÍTICO: A timeline deve apenas REFERENCIAR as refeições já geradas no array "meals".
+        NÃO gere novas refeições na timeline. Use os campos "time" e "day" das refeições existentes.
         
-        Schema:
+        Esquema:
         {
           "summary": {
             "goal": string,
@@ -449,6 +456,7 @@ def create_meal_planning_tasks(user_query: dict):
           },
           "meals": [
             {
+              "day": "SEGUNDA-FEIRA",
               "meal_type": "Café da manhã",
               "name": "Nome da refeição",
               "description": "Descrição detalhada com ingredientes e porções",
@@ -483,55 +491,165 @@ def create_meal_planning_tasks(user_query: dict):
           "timeline": [
             {
               "time": "07:00",
-              "time_display": "7:00 AM",
+              "time_display": "07h00",
               "event_type": "Alert",
-              "event_category": "Glucose Check",
-              "label": "Alert",
-              "description": "Descrição detalhada",
+              "event_category": "Glicemia",
+              "label": "07h00 • Glicemia em Jejum",
+              "description": "Medir glicemia em jejum antes do café da manhã",
               "color": "red",
-              "level": "alert"
+              "level": "alert",
+              "day": "SEGUNDA-FEIRA"
             },
             {
               "time": "07:30",
-              "time_display": "7:30 AM",
+              "time_display": "07h30",
               "event_type": "Meal",
-              "event_category": "Breakfast",
-              "label": "7:30 AM • Breakfast",
-              "description": "Descrição detalhada da refeição com ingredientes",
+              "event_category": "Café da manhã",
+              "label": "07h30 • Café da manhã",
+              "description": "Veja detalhes na aba Nutrição",
               "color": "red",
               "level": "meal",
-              "meal_type": "Café da manhã"
+              "meal_type": "Café da manhã",
+              "day": "SEGUNDA-FEIRA",
+              "meal_ref": "SEGUNDA-FEIRA-Café da manhã"
             },
             {
               "time": "08:30",
-              "time_display": "8:30 AM",
+              "time_display": "08h30",
               "event_type": "Activity",
-              "event_category": "Exercise",
-              "label": "8:30 AM • Activity",
-              "description": "Descrição da atividade recomendada",
+              "event_category": "Exercício",
+              "label": "08h30 • Caminhada Leve",
+              "description": "Caminhada leve de 20-30 minutos após o café",
               "color": "yellow",
-              "level": "activity"
+              "level": "activity",
+              "day": "SEGUNDA-FEIRA"
             }
           ]
         }
 
-        REQUIREMENTS:
-        1. Include specific times (HH:MM format) for all meals
-        2. Include time intervals (HH:MM-HH:MM) for customizable meal windows
-        3. Add glucose check alerts with times (before each main meal)
-        4. Add activity recommendations with times (30-60 min after meals)
-        5. Use "red" color for alerts and meals, "yellow" for activities and snacks
-        6. Include detailed descriptions with ingredients and portions
-        7. Count meals_planned, glucose_checks, and activities in summary
-        8. For each meal, include a "food_items" array with detailed information:
-           - Each food item must have: name, portion (e.g., "100g"), macros (calories, carbs_g, protein_g, fat_g, fiber_g), glycemic_index, glycemic_load
-           - Calculate total_nutrition for the entire meal (sum of all food_items)
-        9. If you don't have exact nutritional data, estimate based on typical values for that food type
-
-        Use the judge output as the source of truth.
+        REQUISITOS CRÍTICOS PARA TIMELINE:
+        
+        1. GERAR EVENTOS PARA TODOS OS 7 DIAS: SEGUNDA-FEIRA, TERÇA-FEIRA, QUARTA-FEIRA, QUINTA-FEIRA, SEXTA-FEIRA, SÁBADO, DOMINGO
+        
+        2. PARA CADA DIA, incluir:
+           - 3 Checks de Glicemia (antes do café, almoço e jantar) com campo "day"
+           - 3 REFERÊNCIAS às Refeições (café, almoço, jantar) com campo "day" e "meal_ref"
+           - 3 Atividades (após café, almoço e jantar) com campo "day"
+           
+        3. FORMATO DE HORA: Use formato brasileiro 24h (ex: "07h30", "12h00", "19h00")
+        
+        4. REFEIÇÕES NA TIMELINE:
+           - NÃO inclua descrição detalhada na timeline
+           - Use "description": "Veja detalhes na aba Nutrição"
+           - Adicione campo "meal_ref": "DIA-TIPO" (ex: "SEGUNDA-FEIRA-Café da manhã")
+           - O frontend usará meal_ref para buscar os detalhes no array "meals"
+        
+        5. CHECKS DE GLICEMIA (em português):
+           - 07:00 - Glicemia em Jejum (antes do café da manhã)
+           - 11:30 - Glicemia Pré-Prandial (antes do almoço)
+           - 18:30 - Glicemia Pré-Prandial (antes do jantar)
+           - event_type: "Alert"
+           - event_category: "Glicemia"
+        
+        6. ATIVIDADES (em português):
+           - 08:30 - Caminhada Leve (20-30 minutos após café)
+           - 13:00 - Caminhada Moderada (20-30 minutos após almoço)
+           - 20:00 - Alongamento Leve (10-15 minutos após jantar)
+           - event_type: "Activity"
+           - event_category: "Exercício" ou "Alongamento"
+        
+        7. EXEMPLO COMPLETO para SEGUNDA-FEIRA:
+           ```json
+           {
+             "time": "07:00", "time_display": "07h00",
+             "event_type": "Alert", "event_category": "Glicemia",
+             "label": "07h00 • Glicemia em Jejum",
+             "description": "Medir glicemia em jejum antes do café da manhã",
+             "color": "red", "level": "alert", "day": "SEGUNDA-FEIRA"
+           },
+           {
+             "time": "07:30", "time_display": "07h30",
+             "event_type": "Meal", "event_category": "Café da manhã",
+             "label": "07h30 • Café da manhã",
+             "description": "Veja detalhes na aba Nutrição",
+             "color": "red", "level": "meal",
+             "meal_type": "Café da manhã", "day": "SEGUNDA-FEIRA",
+             "meal_ref": "SEGUNDA-FEIRA-Café da manhã"
+           },
+           {
+             "time": "08:30", "time_display": "08h30",
+             "event_type": "Activity", "event_category": "Exercício",
+             "label": "08h30 • Caminhada Leve",
+             "description": "Caminhada leve de 20-30 minutos após o café",
+             "color": "yellow", "level": "activity", "day": "SEGUNDA-FEIRA"
+           },
+           {
+             "time": "11:30", "time_display": "11h30",
+             "event_type": "Alert", "event_category": "Glicemia",
+             "label": "11h30 • Glicemia Pré-Prandial",
+             "description": "Medir glicemia antes do almoço",
+             "color": "red", "level": "alert", "day": "SEGUNDA-FEIRA"
+           },
+           {
+             "time": "12:00", "time_display": "12h00",
+             "event_type": "Meal", "event_category": "Almoço",
+             "label": "12h00 • Almoço",
+             "description": "Veja detalhes na aba Nutrição",
+             "color": "red", "level": "meal",
+             "meal_type": "Almoço", "day": "SEGUNDA-FEIRA",
+             "meal_ref": "SEGUNDA-FEIRA-Almoço"
+           },
+           {
+             "time": "13:00", "time_display": "13h00",
+             "event_type": "Activity", "event_category": "Exercício",
+             "label": "13h00 • Caminhada Moderada",
+             "description": "Caminhada moderada de 20-30 minutos após o almoço",
+             "color": "yellow", "level": "activity", "day": "SEGUNDA-FEIRA"
+           },
+           {
+             "time": "18:30", "time_display": "18h30",
+             "event_type": "Alert", "event_category": "Glicemia",
+             "label": "18h30 • Glicemia Pré-Prandial",
+             "description": "Medir glicemia antes do jantar",
+             "color": "red", "level": "alert", "day": "SEGUNDA-FEIRA"
+           },
+           {
+             "time": "19:00", "time_display": "19h00",
+             "event_type": "Meal", "event_category": "Jantar",
+             "label": "19h00 • Jantar",
+             "description": "Veja detalhes na aba Nutrição",
+             "color": "red", "level": "meal",
+             "meal_type": "Jantar", "day": "SEGUNDA-FEIRA",
+             "meal_ref": "SEGUNDA-FEIRA-Jantar"
+           },
+           {
+             "time": "20:00", "time_display": "20h00",
+             "event_type": "Activity", "event_category": "Alongamento",
+             "label": "20h00 • Alongamento Leve",
+             "description": "Alongamento leve de 10-15 minutos após o jantar",
+             "color": "yellow", "level": "activity", "day": "SEGUNDA-FEIRA"
+           }
+           ```
+        
+        8. REPETIR a mesma estrutura para TERÇA-FEIRA, QUARTA-FEIRA, QUINTA-FEIRA, SEXTA-FEIRA, SÁBADO e DOMINGO
+        
+        9. Cada evento da timeline DEVE ter o campo "day" definido como um dos:
+           "SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA", "SÁBADO", "DOMINGO"
+        
+        10. NÃO duplicar eventos - cada evento deve aparecer apenas uma vez com seu dia correto
+        
+        11. Usar cores: "red" para glicemia e refeições, "yellow" para atividades
+        
+        12. Contar meals_planned, glucose_checks e activities no summary (total dos 7 dias)
+        
+        13. Para cada refeição no array "meals", incluir array "food_items" com informação nutricional detalhada
+        14. O array "food_items" DEVE conter um item para CADA alimento listado em "items" (mesma quantidade e correspondência 1:1)
+        15. Incluir macros completas e porção para TODOS os alimentos (proteína, carboidrato, leguminosa, vegetais, etc.)
+        
+        Use a saída do judge como fonte da verdade.
         """,
         agent=plan_json_agent,
-        expected_output="Valid JSON object following the schema with specific times and detailed descriptions.",
+        expected_output="Objeto JSON válido com eventos da timeline para todos os 7 dias, cada evento tendo campo 'day' corretamente definido. As refeições na timeline devem ter 'meal_ref' para referenciar o array 'meals'.",
         context=[judge_task],
     )
     
@@ -618,63 +736,4 @@ def generate_meal_plan(user_query: dict) -> dict:
         "steps": steps,
     }
 
-
-if __name__ == "__main__":
-    # Example usage
-    print("🤖 Meal Planning RAG System with CrewAI")
-    print(f"📦 Model: {gemini_model}\n")
-    
-    # Example user query
-    example_query = {
-        "meal_history": [
-            "Café da manhã: Pão integral com queijo, café sem açúcar",
-            "Almoço: Arroz, feijão, frango grelhado, salada",
-            "Jantar: Sopa de legumes"
-        ],
-        "health_metrics": {
-            "diabetes_type": "Type 2",
-            "glucose_levels": "Elevated (140-180 mg/dL)",
-            "weight": "85 kg",
-            "height": "1.75 m"
-        },
-        "preferences": {
-            "cuisine": "Brasileira",
-            "region": "Sudeste",
-            "likes": ["feijão", "frutas", "vegetais", "carne"],
-            "dislikes": ["comida muito doce"]
-        },
-        "goals": [
-            "Controlar glicemia",
-            "Perder peso moderadamente",
-            "Melhorar saúde cardiovascular"
-        ],
-        "restrictions": [
-            "Diabetes tipo 2",
-            "Limitar carboidratos refinados",
-            "Evitar açúcar adicionado"
-        ],
-        "region": "Sudeste brasileiro",
-        "inventory": ["arroz integral", "feijão preto", "frango", "legumes", "mamão"],
-        "glucose_readings": [
-            {"timestamp": "2026-01-10T08:00:00", "value_mg_dl": 135},
-            {"timestamp": "2026-01-10T12:00:00", "value_mg_dl": 190},
-            {"timestamp": "2026-01-10T18:00:00", "value_mg_dl": 160}
-        ]
-    }
-    
-    print("Generating meal plan for example user...")
-    print("\nUser Profile:")
-    print(f"  Goals: {example_query['goals']}")
-    print(f"  Restrictions: {example_query['restrictions']}")
-    print(f"  Region: {example_query['region']}\n")
-    
-    result = generate_meal_plan(example_query)
-    
-    print("\n" + "="*70)
-    print("FINAL MEAL PLAN:")
-    print("="*70)
-    if isinstance(result, dict):
-        print(result.get("final_plan", ""))
-    else:
-        print(result)
 

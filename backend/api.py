@@ -9,12 +9,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from .storage import init_db, save_plan, list_plans, get_plan, create_user, list_users, get_user, update_user, delete_user, create_auth_user, get_auth_user_by_email, create_user_with_empty_profile, get_user_by_auth_id, save_consumed_meal, get_consumed_meals, calculate_adherence, check_database_health, delete_consumed_meal
+from .storage import init_db, save_plan, list_plans, get_plan, create_user, list_users, get_user, update_user, delete_user, create_auth_user, get_auth_user_by_email, create_user_with_empty_profile, get_user_by_auth_id, save_consumed_meal, get_consumed_meals, calculate_adherence, check_database_health, delete_consumed_meal, _engine, PlanRecord, Session
 import bcrypt
 import uvicorn
 import asyncio
 import logging
 from datetime import datetime
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -280,7 +281,8 @@ async def startup_event():
 
         if health["status"] == "healthy":
             logger.info("✅ Database health check passed!")
-            logger.info(f"   📁 Database: {health['database_path']}")
+            logger.info(f"   �️  Database Type: {health['database_type']}")
+            logger.info(f"   🌐 Database URL: {health['database_url']}")
             logger.info(f"   📏 Size: {health['database_size_mb']} MB")
             logger.info(f"   📊 Tables: {health['tables']}")
         else:
@@ -821,6 +823,32 @@ async def update_user_endpoint(user_id: int, profile: UserProfile):
     return UserResponse(**updated)
 
 
+@api_router.delete("/plans/{plan_id}")
+async def delete_plan_endpoint(plan_id: int):
+    """Delete a specific plan by ID"""
+    from .storage import delete_plan
+    
+    success = delete_plan(plan_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    return {"success": True, "message": f"Plan {plan_id} deleted successfully"}
+
+
+@api_router.post("/plans/cleanup")
+async def cleanup_old_plans(keep_latest: int = 5):
+    """Delete old plans, keeping only the latest N plans"""
+    from .storage import delete_old_plans
+    
+    deleted_count = delete_old_plans(keep_latest=keep_latest)
+    
+    return {
+        "success": True,
+        "deleted_count": deleted_count,
+        "message": f"Cleaned up {deleted_count} old plans, kept latest {keep_latest}"
+    }
+
+
 @api_router.delete("/users/{user_id}")
 async def delete_user_endpoint(user_id: int):
     deleted = delete_user(user_id)
@@ -872,6 +900,7 @@ async def get_saved_plan(plan_id: int):
 @api_router.put("/users/{user_id}/health-metrics")
 async def update_health_metrics(user_id: int, health_metrics: HealthMetrics):
     """Update user's health metrics (clinical and anthropometric data)"""
+    logger.info(f"Updating health metrics for user {user_id}: {health_metrics.dict(exclude_none=True)}")
     stored = get_user(user_id)
     if not stored:
         raise HTTPException(status_code=404, detail="User not found")
@@ -883,30 +912,41 @@ async def update_health_metrics(user_id: int, health_metrics: HealthMetrics):
         profile["health_metrics"] = {}
     profile["health_metrics"].update(health_dict)
     updated = update_user(user_id, profile)
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update user")
+    logger.info(f"Health metrics updated successfully for user {user_id}")
     return UserResponse(**updated)
 
 
 @api_router.put("/users/{user_id}/preferences")
 async def update_preferences(user_id: int, preferences: Preferences):
     """Update user's food preferences and cultural preferences"""
+    logger.info(f"Updating preferences for user {user_id}: {preferences.dict()}")
     stored = get_user(user_id)
     if not stored:
         raise HTTPException(status_code=404, detail="User not found")
     profile = stored["profile"]
     profile["preferences"] = preferences.dict()
     updated = update_user(user_id, profile)
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update user")
+    logger.info(f"Preferences updated successfully for user {user_id}")
     return UserResponse(**updated)
 
 
 @api_router.put("/users/{user_id}/restrictions")
 async def update_restrictions(user_id: int, restrictions: List[str]):
     """Update user's dietary restrictions"""
+    logger.info(f"Updating restrictions for user {user_id}: {restrictions}")
     stored = get_user(user_id)
     if not stored:
         raise HTTPException(status_code=404, detail="User not found")
     profile = stored["profile"]
     profile["restrictions"] = restrictions
     updated = update_user(user_id, profile)
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update user")
+    logger.info(f"Restrictions updated successfully for user {user_id}")
     return UserResponse(**updated)
 
 
@@ -1007,78 +1047,56 @@ def get_user_plan_history(user_id: int, limit: int = 20):
     if not stored:
         raise HTTPException(status_code=404, detail="User not found")
 
-    import sqlite3
-    import os
-
-    db_path = os.path.join(os.path.dirname(__file__), "data", "diabetesai.db")
-
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        engine = _engine()
+        with Session(engine) as session:
+            # Query all plans and filter in Python (portable across DBs)
+            plans = session.query(PlanRecord).order_by(PlanRecord.id.desc()).limit(limit * 5).all()
+            
+            user_plans = []
+            for plan in plans:
+                request_payload = plan.request_payload
+                response_payload = plan.response_payload
+                
+                # Check if this plan belongs to the user
+                if isinstance(request_payload, dict) and request_payload.get('user_id') == user_id:
+                    plan_json = (response_payload or {}).get("plan_json") if isinstance(response_payload, dict) else None
+                    
+                    user_plans.append({
+                        "id": plan.id,
+                        "created_at": plan.created_at.isoformat(),
+                        "plan_json": plan_json,
+                        "summary": (plan_json or {}).get("summary", {})
+                    })
+                    
+                    if len(user_plans) >= limit:
+                        break
 
-        # Query otimizada usando json_extract
-        cursor.execute("""
-            SELECT id, created_at, request_payload, response_payload
-            FROM plans
-            WHERE json_extract(request_payload, '$.user_id') = ?
-            ORDER BY id DESC
-            LIMIT ?
-        """, (user_id, limit))
-
-        results = cursor.fetchall()
-
-        user_plans = []
-        for row in results:
-            plan_id, created_at, request_payload, response_payload = row
-
-            # Parse JSON response
-            try:
-                if isinstance(response_payload, str):
-                    response_payload = json.loads(response_payload)
-                plan_json = (response_payload or {}).get("plan_json")
-            except Exception as e:
-                print(f"Erro ao parsear plano {plan_id}: {e}")
-                plan_json = None
-
-            user_plans.append({
-                "id": plan_id,
-                "created_at": created_at,
-                "plan_json": plan_json,
-                "summary": (plan_json or {}).get("summary", {})
-            })
-
-        conn.close()
-
-        return {
-            "success": True,
-            "plans": user_plans,
-            "count": len(user_plans)
-        }
+            return {
+                "success": True,
+                "plans": user_plans,
+                "count": len(user_plans)
+            }
 
     except Exception as e:
-        print(f"Erro na busca de histórico para usuário {user_id}: {e}")
+        logger.error(f"Erro na busca de histórico para usuário {user_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 
 @api_router.get("/test/user/{user_id}")
 def test_user_plans(user_id: int):
     """Simple test endpoint"""
-    import sqlite3
-    import os
-
-    db_path = os.path.join(os.path.dirname(__file__), "data", "diabetesai.db")
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT COUNT(*) FROM plans
-        WHERE json_extract(request_payload, '$.user_id') = ?
-    """, (user_id,))
-
-    count = cursor.fetchone()[0]
-    conn.close()
-
-    return {"user_id": user_id, "plan_count": count}
+    try:
+        engine = _engine()
+        with Session(engine) as session:
+            # Query all plans and count in Python (portable across DBs)
+            all_plans = session.query(PlanRecord).all()
+            count = sum(1 for plan in all_plans if isinstance(plan.request_payload, dict) and plan.request_payload.get('user_id') == user_id)
+            
+            return {"user_id": user_id, "plan_count": count}
+    except Exception as e:
+        logger.error(f"Error in test endpoint: {e}")
+        return {"user_id": user_id, "plan_count": 0, "error": str(e)}
 
 
 # Cache simples para planos recentes (em memória)
@@ -1103,125 +1121,71 @@ def _set_cached_plan(user_id: int, plan_data: dict):
     _plan_cache[cache_key] = (plan_data, time.time())
 
 def _get_latest_user_plan(user_id: int) -> Optional[Dict[str, Any]]:
-    """Busca o plano mais recente do usuário usando query otimizada"""
-    import sqlite3
-    import os
-    import json
-
+    """Busca o plano mais recente do usuário usando SQLAlchemy (PostgreSQL/SQLite)"""
     # Verifica cache primeiro
     cached = _get_cached_plan(user_id)
     if cached:
         return cached
 
-    db_path = os.path.join(os.path.dirname(__file__), "data", "diabetesai.db")
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        engine = _engine()
+        with Session(engine) as session:
+            # Query all plans and filter in Python (portable across DBs)
+            plans = session.query(PlanRecord).order_by(PlanRecord.id.desc()).limit(100).all()
+            
+            for plan in plans:
+                request_payload = plan.request_payload
+                if isinstance(request_payload, dict) and request_payload.get('user_id') == user_id:
+                    response_payload = plan.response_payload
+                    
+                    plan_json = (response_payload or {}).get("plan_json") if isinstance(response_payload, dict) else None
+                    meal_plan = (response_payload or {}).get("meal_plan") if isinstance(response_payload, dict) else None
+                    artifacts = (response_payload or {}).get("artifacts") if isinstance(response_payload, dict) else None
 
-        # Query otimizada usando json_extract
-        cursor.execute("""
-            SELECT id, created_at, request_payload, response_payload
-            FROM plans
-            WHERE json_extract(request_payload, '$.user_id') = ?
-            ORDER BY id DESC
-            LIMIT 1
-        """, (user_id,))
+                    plan_data = {
+                        "success": True,
+                        "plan_id": plan.id,
+                        "created_at": plan.created_at.isoformat(),
+                        "meal_plan": meal_plan,
+                        "plan_json": plan_json,
+                        "artifacts": artifacts,
+                        "message": f"Plano existente carregado (ID: {plan.id})",
+                        "cached": False
+                    }
 
-        row = cursor.fetchone()
-        conn.close()
+                    # Armazena em cache
+                    _set_cached_plan(user_id, plan_data)
 
-        if row:
-            plan_id, created_at, request_payload, response_payload = row
-
-            # Parse response JSON
-            try:
-                if isinstance(response_payload, str):
-                    response_payload = json.loads(response_payload)
-                plan_json = (response_payload or {}).get("plan_json")
-                meal_plan = (response_payload or {}).get("meal_plan")
-                artifacts = (response_payload or {}).get("artifacts")
-            except Exception as e:
-                print(f"Erro ao parsear plano {plan_id}: {e}")
-                plan_json = None
-                meal_plan = None
-                artifacts = None
-
-            plan_data = {
-                "success": True,
-                "plan_id": plan_id,
-                "created_at": created_at,
-                "meal_plan": meal_plan,
-                "plan_json": plan_json,
-                "artifacts": artifacts,
-                "message": f"Plano existente carregado (ID: {plan_id})",
-                "cached": False
-            }
-
-            # Armazena em cache
-            _set_cached_plan(user_id, plan_data)
-
-            return plan_data
+                    return plan_data
 
     except Exception as e:
-        print(f"Erro ao buscar plano do usuário {user_id}: {e}")
+        logger.error(f"Erro ao buscar plano do usuário {user_id}: {e}")
 
     return None
 
 @api_router.get("/users/{user_id}/plan")
 async def get_or_generate_user_plan(user_id: int, force_generate: bool = False):
     """
-    Endpoint unificado: busca plano existente ou gera novo
+    Load existing plan from database (no automatic generation)
     Query params:
-    - force_generate: true para forçar geração de novo plano
+    - force_generate: ignored (kept for backward compatibility, use POST /meal-plan/generate instead)
     """
-    print(f"DEBUG: Endpoint chamado para user_id={user_id}, force_generate={force_generate}")
+    logger.info(f"Loading plan for user_id={user_id}")
 
-    # Busca plano existente primeiro (sempre tenta cache/plano salvo)
+    # Only load existing plan from database
     existing_plan = _get_latest_user_plan(user_id)
-    print(f"DEBUG: existing_plan is None: {existing_plan is None}")
-
-    if existing_plan and not force_generate:
-        print(f"DEBUG: existing_plan plan_json: {existing_plan.get('plan_json') is not None}")
+    
+    if existing_plan:
+        logger.info(f"Plan found for user {user_id}")
         existing_plan["cached"] = True
         return existing_plan
-
-    # Se não encontrou plano existente ou foi forçado, gera novo
-    stored = get_user(user_id)
-    if not stored:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    profile = stored.get("profile", {})
-
-    # Valida dados mínimos
-    health_metrics = profile.get("health_metrics", {})
-    if not health_metrics or not health_metrics.get("diabetes_type"):
-        raise HTTPException(
-            status_code=400,
-            detail="Perfil incompleto. Por favor, preencha os dados clínicos primeiro."
-        )
-
-    # Prepara request
-    meal_plan_request = MealPlanRequest(
-        meal_history=profile.get("meal_history", []),
-        health_metrics=HealthMetrics(**health_metrics) if health_metrics else None,
-        preferences=Preferences(**profile.get("preferences", {})) if profile.get("preferences") else None,
-        goals=profile.get("goals", []),
-        restrictions=profile.get("restrictions", []),
-        region=profile.get("region"),
-        inventory=profile.get("inventory", []),
-        glucose_readings=[GlucoseReading(**r) for r in profile.get("glucose_readings", [])] if profile.get("glucose_readings") else [],
-        user_id=user_id
+    
+    # No plan found - return empty response
+    logger.info(f"No plan found for user {user_id}")
+    raise HTTPException(
+        status_code=404,
+        detail="Nenhum plano encontrado. Use o botão 'Gerar novo plano' para criar um plano personalizado."
     )
-
-    # Gera plano
-    result = await generate_meal_plan_endpoint(meal_plan_request)
-
-    # Invalida cache
-    cache_key = f"user_{user_id}_latest"
-    if cache_key in _plan_cache:
-        del _plan_cache[cache_key]
-
-    return result
 
 @api_router.get("/users/{user_id}/generate-daily-plan")
 async def generate_daily_plan_dynamic(user_id: int):
@@ -1372,20 +1336,23 @@ async def validate_meal_plan(request: MealPlanRequest):
 
 
 @api_router.post("/food/substitutions")
-async def get_food_substitutions(
-    food_name: str,
-    max_results: int = 5,
-    restrictions: Optional[List[str]] = None
-):
+async def get_food_substitutions(request: Dict[str, Any]):
     """Get nutritional substitutions for a food item"""
     from services.food_substitution_service import FoodSubstitutionService
+    
+    food_name = request.get("food_name")
+    max_results = request.get("max_results", 5)
+    restrictions = request.get("restrictions", [])
+    
+    if not food_name:
+        raise HTTPException(status_code=400, detail="food_name is required")
     
     substitution_service = FoodSubstitutionService()
     
     substitutions = substitution_service.find_substitutions(
         food_name,
         max_results=max_results,
-        restrictions=restrictions or []
+        restrictions=restrictions
     )
     
     return {

@@ -1,6 +1,8 @@
 import os
 import json
 import logging
+import re
+import unicodedata
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pathlib import Path
@@ -13,22 +15,20 @@ from sqlalchemy.exc import SQLAlchemyError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Database configuration
+# Database configuration - PostgreSQL only
 PROJECT_ROOT = Path(__file__).parent.absolute()
 DATA_DIR = PROJECT_ROOT / "data"
-DATABASE_FILE = DATA_DIR / "diabetesai.db"
 
-# Support both SQLite (default) and PostgreSQL
+# PostgreSQL database URL (required)
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    f"sqlite:///{DATABASE_FILE}",
+    "postgresql+psycopg2://diabetes_user:diabetes123@localhost:5432/diabetesai",
 )
 
-# Detect database type
-IS_POSTGRESQL = DATABASE_URL.startswith("postgresql")
-IS_SQLITE = DATABASE_URL.startswith("sqlite")
+if not DATABASE_URL.startswith("postgresql"):
+    raise ValueError("DATABASE_URL must be a PostgreSQL connection string")
 
-# Ensure data directory exists
+# Ensure data directory exists for other data files
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 Base = declarative_base()
@@ -74,38 +74,21 @@ class ConsumedMealRecord(Base):
 
 
 def _engine():
-    """Create and return a SQLAlchemy engine with proper configuration."""
+    """Create and return a PostgreSQL SQLAlchemy engine."""
     try:
-        connect_args = {}
         engine_kwargs = {
             "future": True,
             "pool_pre_ping": True,  # Test connections before using them
             "echo": False,  # Set to True for SQL logging during development
+            "pool_size": 10,  # Connection pool size
+            "max_overflow": 20,  # Max overflow connections
+            "pool_timeout": 30,  # Connection timeout
+            "pool_recycle": 3600,  # Recycle connections after 1 hour
         }
 
-        if IS_SQLITE:
-            # SQLite specific configurations
-            connect_args = {
-                "check_same_thread": False,  # Allow multi-threading for SQLite
-                "timeout": 30.0,  # Connection timeout
-            }
-            logger.info("🔧 Using SQLite database configuration")
-        elif IS_POSTGRESQL:
-            # PostgreSQL specific configurations
-            engine_kwargs.update({
-                "pool_size": 10,  # Connection pool size
-                "max_overflow": 20,  # Max overflow connections
-                "pool_timeout": 30,  # Connection timeout
-                "pool_recycle": 3600,  # Recycle connections after 1 hour
-            })
-            logger.info("🔧 Using PostgreSQL database configuration")
-        else:
-            logger.warning(f"⚠️ Unknown database type in URL: {DATABASE_URL}")
-
-        engine_kwargs["connect_args"] = connect_args
-
+        logger.info("🔧 Using PostgreSQL database configuration")
         engine = create_engine(DATABASE_URL, **engine_kwargs)
-        logger.info(f"✅ Database engine created successfully: {'PostgreSQL' if IS_POSTGRESQL else 'SQLite'}")
+        logger.info("✅ PostgreSQL database engine created successfully")
         return engine
     except Exception as e:
         logger.error(f"❌ Failed to create database engine: {e}")
@@ -113,21 +96,14 @@ def _engine():
 
 
 def init_db() -> None:
-    """Initialize database tables."""
+    """Initialize PostgreSQL database tables."""
     try:
-        logger.info("Initializing database...")
+        logger.info("Initializing PostgreSQL database...")
         engine = _engine()
 
         # Create all tables
         Base.metadata.create_all(engine)
-
-        # Verify database file was created
-        if DATABASE_FILE.exists():
-            logger.info(f"Database initialized successfully at: {DATABASE_FILE}")
-            logger.info(f"Database file size: {DATABASE_FILE.stat().st_size} bytes")
-        else:
-            logger.error(f"Database file was not created at: {DATABASE_FILE}")
-            raise FileNotFoundError(f"Database file not found: {DATABASE_FILE}")
+        logger.info("✅ PostgreSQL database tables created successfully")
 
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
@@ -162,17 +138,14 @@ def save_plan(request_payload: Dict[str, Any], response_payload: Dict[str, Any])
 
 
 def check_database_health() -> Dict[str, Any]:
-    """Check database health and connectivity."""
+    """Check PostgreSQL database health and connectivity."""
     try:
-        logger.debug("Checking database health...")
+        logger.debug("Checking PostgreSQL database health...")
         engine = _engine()
 
         with Session(engine) as session:
             # Test basic connectivity
-            if IS_POSTGRESQL:
-                session.execute(text("SELECT 1"))
-            else:
-                session.execute(text("SELECT 1"))
+            session.execute(text("SELECT 1"))
 
             # Get table counts
             plans_count = session.query(PlanRecord).count()
@@ -180,12 +153,16 @@ def check_database_health() -> Dict[str, Any]:
             auth_users_count = session.query(AuthUserRecord).count()
             consumed_meals_count = session.query(ConsumedMealRecord).count()
 
-            # Check database file info
-            db_size = DATABASE_FILE.stat().st_size if DATABASE_FILE.exists() else 0
+            # Get database size from PostgreSQL
+            db_size_result = session.execute(
+                text("SELECT pg_database_size(current_database())")
+            ).scalar()
+            db_size = db_size_result if db_size_result else 0
 
             health_info = {
                 "status": "healthy",
-                "database_path": str(DATABASE_FILE),
+                "database_type": "PostgreSQL",
+                "database_url": DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else "localhost",
                 "database_size_bytes": db_size,
                 "database_size_mb": round(db_size / (1024 * 1024), 2),
                 "tables": {
@@ -197,15 +174,16 @@ def check_database_health() -> Dict[str, Any]:
                 "last_check": datetime.utcnow().isoformat(),
             }
 
-            logger.info(f"Database health check passed. Tables: plans={plans_count}, users={users_count}")
+            logger.info(f"PostgreSQL health check passed. Tables: plans={plans_count}, users={users_count}")
             return health_info
 
     except SQLAlchemyError as e:
-        logger.error(f"Database health check failed: {e}")
+        logger.error(f"PostgreSQL health check failed: {e}")
         return {
             "status": "unhealthy",
-            "database_path": str(DATABASE_FILE),
-            "database_size_bytes": DATABASE_FILE.stat().st_size if DATABASE_FILE.exists() else 0,
+            "database_type": "PostgreSQL",
+            "database_url": DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else "localhost",
+            "database_size_bytes": 0,
             "database_size_mb": 0,
             "error": str(e),
             "error_type": "database_error",
@@ -216,8 +194,9 @@ def check_database_health() -> Dict[str, Any]:
         logger.error(f"Unexpected error during health check: {e}")
         return {
             "status": "unhealthy",
-            "database_path": str(DATABASE_FILE),
-            "database_size_bytes": DATABASE_FILE.stat().st_size if DATABASE_FILE.exists() else 0,
+            "database_type": "PostgreSQL",
+            "database_url": DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else "localhost",
+            "database_size_bytes": 0,
             "database_size_mb": 0,
             "error": str(e),
             "error_type": "unexpected_error",
@@ -287,6 +266,70 @@ def get_plan(plan_id: int) -> Optional[Dict[str, Any]]:
             "request_payload": row.request_payload,
             "response_payload": row.response_payload,
         }
+
+
+def delete_plan(plan_id: int) -> bool:
+    """Delete a plan by ID. Returns True if deleted, False if not found."""
+    try:
+        engine = _engine()
+        with Session(engine) as session:
+            row = session.get(PlanRecord, plan_id)
+            if not row:
+                return False
+            session.delete(row)
+            session.commit()
+            logger.info(f"Plan {plan_id} deleted successfully")
+            return True
+    except SQLAlchemyError as e:
+        logger.error(f"Database error while deleting plan {plan_id}: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error while deleting plan {plan_id}: {e}")
+        raise
+
+
+def delete_old_plans(user_id: Optional[int] = None, keep_latest: int = 5) -> int:
+    """Delete old plans, keeping only the latest N plans per user.
+    
+    Args:
+        user_id: If provided, only delete plans for this user. Otherwise, clean all users.
+        keep_latest: Number of latest plans to keep per user (default: 5)
+    
+    Returns:
+        Number of plans deleted
+    """
+    try:
+        engine = _engine()
+        with Session(engine) as session:
+            # Get all plans ordered by created_at descending
+            query = session.query(PlanRecord).order_by(PlanRecord.created_at.desc())
+            
+            # If user_id provided, we'd need to filter by user somehow
+            # Since plans don't have user_id directly, we'll delete oldest plans globally
+            all_plans = query.all()
+            
+            if len(all_plans) <= keep_latest:
+                logger.info(f"Only {len(all_plans)} plans found, nothing to delete")
+                return 0
+            
+            # Delete all except the latest keep_latest
+            plans_to_delete = all_plans[keep_latest:]
+            deleted_count = 0
+            
+            for plan in plans_to_delete:
+                session.delete(plan)
+                deleted_count += 1
+            
+            session.commit()
+            logger.info(f"Deleted {deleted_count} old plans, kept latest {keep_latest}")
+            return deleted_count
+            
+    except SQLAlchemyError as e:
+        logger.error(f"Database error while deleting old plans: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error while deleting old plans: {e}")
+        raise
 
 
 def create_auth_user(email: str, password_hash: str) -> int:
@@ -509,10 +552,12 @@ def calculate_adherence(
 ) -> Dict[str, Any]:
     """Calculate adherence metrics for a user's meal plan"""
     # Get the plan
+    current_plan_id: Optional[int] = None
     if plan_id:
         plan_data = get_plan(plan_id)
         if not plan_data:
             return {"error": "Plan not found"}
+        current_plan_id = plan_id
         
         plan_json = plan_data.get("response_payload", {}).get("plan_json", {})
         planned_meals = plan_json.get("meals", [])
@@ -526,7 +571,8 @@ def calculate_adherence(
         if not user_plans:
             return {"error": "No plans found for user"}
         
-        plan_data = get_plan(user_plans[0]["id"])
+        current_plan_id = user_plans[0]["id"]
+        plan_data = get_plan(current_plan_id)
         plan_json = plan_data.get("response_payload", {}).get("plan_json", {})
         planned_meals = plan_json.get("meals", [])
     
@@ -535,30 +581,61 @@ def calculate_adherence(
     
     # Get consumed meals
     consumed_meals = get_consumed_meals(user_id, start_date, end_date)
+    if current_plan_id is not None:
+        consumed_meals_for_plan = [
+            cm for cm in consumed_meals
+            if cm.get("plan_id") == current_plan_id
+        ]
+    else:
+        consumed_meals_for_plan = consumed_meals
     
     # Calculate metrics
     total_planned = len(planned_meals)
 
+    def _normalize_text(value: str) -> str:
+        if not value:
+            return ""
+        value = unicodedata.normalize("NFKD", value)
+        value = "".join(ch for ch in value if not unicodedata.combining(ch))
+        value = value.lower()
+        value = re.sub(r"[^a-z0-9]+", " ", value)
+        return " ".join(value.split())
+
+    def _names_match(consumed_name: str, planned_name: str) -> bool:
+        c_norm = _normalize_text(consumed_name)
+        p_norm = _normalize_text(planned_name)
+        if not c_norm or not p_norm:
+            return False
+        if c_norm in p_norm or p_norm in c_norm:
+            return True
+        c_tokens = set(c_norm.split())
+        p_tokens = set(p_norm.split())
+        if not c_tokens or not p_tokens:
+            return False
+        overlap = len(c_tokens & p_tokens)
+        return overlap / min(len(c_tokens), len(p_tokens)) >= 0.6
+
     # Match consumed meals to planned meals (by meal_type and name similarity)
     matched_meals = []
-    for consumed in consumed_meals:
+    for consumed in consumed_meals_for_plan:
         for planned in planned_meals:
             planned_type = planned.get("meal_type") or planned.get("type", "")
             planned_name = planned.get("name") or planned.get("title", "")
+            consumed_type = consumed.get("meal_type", "")
+            consumed_name = consumed.get("meal_name", "")
 
-            # More precise matching
-            if (consumed["meal_type"].lower() == planned_type.lower() and
-                (consumed["meal_name"].lower() in planned_name.lower() or
-                 planned_name.lower() in consumed["meal_name"].lower() or
-                 planned_name.lower() == consumed["meal_name"].lower())):
+            if not planned_type or not consumed_type:
+                continue
+
+            if consumed_type.lower() == planned_type.lower() and _names_match(consumed_name, planned_name):
                 matched_meals.append(consumed)
                 break
 
-    # Calculate adherence based only on matched meals vs planned meals
-    adherence_percentage = (len(matched_meals) / total_planned * 100) if total_planned > 0 else 0
+    # Count all consumed meals for the current plan (more consistent with by_meal_type)
+    total_consumed_in_plan = len(consumed_meals_for_plan)
 
-    # Count only consumed meals that match the current plan
-    total_consumed_in_plan = len(matched_meals)
+    # Calculate adherence based on consumed meals vs planned meals
+    adherence_percentage = (total_consumed_in_plan / total_planned * 100) if total_planned > 0 else 0
     
     # Group by meal type
     by_type = {}
@@ -568,7 +645,7 @@ def calculate_adherence(
             by_type[meal_type] = {"planned": 0, "consumed": 0}
         by_type[meal_type]["planned"] += 1
     
-    for consumed in consumed_meals:
+    for consumed in consumed_meals_for_plan:
         meal_type = consumed["meal_type"]
         if meal_type not in by_type:
             by_type[meal_type] = {"planned": 0, "consumed": 0}
@@ -580,7 +657,7 @@ def calculate_adherence(
         "matched_meals": len(matched_meals),
         "adherence_percentage": round(min(adherence_percentage, 100.0), 2),  # Cap at 100%
         "by_meal_type": by_type,
-        "consumed_meals": consumed_meals[:20],  # Last 20 consumed meals
+        "consumed_meals": consumed_meals_for_plan[:20],  # Last 20 consumed meals
         "all_consumed_count": len(consumed_meals),  # Total consumed meals across all plans
     }
 

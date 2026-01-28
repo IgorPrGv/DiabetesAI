@@ -43,27 +43,81 @@ class NutritionService:
         retrieval = self._rag_tool._run(query)
 
         task = Task(
-            description=f"""Crie recomendações alimentares e substituições:
+            description=f"""Crie um PLANO ALIMENTAR SEMANAL COMPLETO (7 dias) com VARIEDADE OBRIGATÓRIA:
 
-            Dados do usuário:
-            - Histórico: {payload.get('meal_history', [])}
-            - Métricas: {payload.get('health_metrics', {})}
-            - Preferências: {payload.get('preferences', {})}
-            - Metas: {payload.get('goals', [])}
-            - Restrições: {payload.get('restrictions', [])}
-            - Inventário: {payload.get('inventory', [])}
-            - Região: {payload.get('region')}
+**REGRAS CRÍTICAS DE VARIEDADE:**
+1. Cada tipo de refeição (Café da Manhã, Almoço, Jantar) DEVE ter MÍNIMO 3 VARIAÇÕES diferentes durante a semana
+2. MÁXIMO 3 repetições da mesma refeição por semana
+3. Exemplo correto:
+   - Segunda: Ovos com pão integral
+   - Terça: Tapioca com queijo cottage
+   - Quarta: Mingau de quinoa
+   - Quinta: Iogurte com granola
+   - Sexta: Ovos com pão integral (1ª repetição)
+   - Sábado: Tapioca com queijo cottage (1ª repetição)
+   - Domingo: Panqueca de banana com aveia
 
-            Contexto recuperado:
-            {retrieval}
+**ESTRUTURA OBRIGATÓRIA POR DIA:**
+Para cada dia da semana (Segunda a Domingo), forneça:
 
-            Gere:
-            1) Recomendações alimentares diárias
-            2) Substituições com base no inventário
-            3) Observações sobre macro/micro (fibras, carboidratos, sódio)
-            """,
+1. **Café da Manhã (07:00-08:00)**
+   - Nome descritivo da refeição
+   - Lista de alimentos com porções EM GRAMAS (ex: "Ovos (100g)", "Pão Integral (50g)")
+   - Macronutrientes DETALHADOS de cada alimento:
+     * Calorias, Carboidratos (g), Proteínas (g), Gorduras (g), Fibras (g)
+     * Índice Glicêmico e Carga Glicêmica
+   - Total nutricional da refeição
+   - 2-3 substituições possíveis para cada alimento principal
+
+2. **Lanche da Manhã (10:00-10:30)**
+   - Mesma estrutura acima
+
+3. **Almoço (12:00-13:00)**
+   - Mesma estrutura acima
+
+4. **Lanche da Tarde (15:30-16:00)**
+   - Mesma estrutura acima
+
+5. **Jantar (19:00-20:00)**
+   - Mesma estrutura acima
+
+**DADOS DO USUÁRIO:**
+- Histórico de refeições: {payload.get('meal_history', [])}
+- Métricas de saúde: {payload.get('health_metrics', {})}
+- Preferências alimentares: {payload.get('preferences', {})}
+- Metas nutricionais: {payload.get('goals', [])}
+- Restrições dietéticas: {payload.get('restrictions', [])}
+- Inventário disponível: {payload.get('inventory', [])}
+- Região/Culinária: {payload.get('region')}
+
+**CONTEXTO NUTRICIONAL (RAG):**
+{retrieval}
+
+**FORMATO DE SAÍDA OBRIGATÓRIO:**
+Organize por dia da semana em texto estruturado:
+
+SEGUNDA-FEIRA:
+Café da manhã (07:30): [Nome da Refeição]
+- Alimento 1 (XXXg): Y kcal, Zg carbs, Wg proteína, Vg gordura, Ug fibra | IG: XX, CG: YY
+- Alimento 2 (XXXg): Y kcal, Zg carbs, Wg proteína, Vg gordura, Ug fibra | IG: XX, CG: YY
+Total: XXX kcal, XXg carbs, XXg proteína
+Substituições: [Alimento 1] → [Alt 1, Alt 2, Alt 3]
+
+[Repetir para Lanche Manhã, Almoço, Lanche Tarde, Jantar]
+
+TERÇA-FEIRA:
+[Mesma estrutura, mas COM REFEIÇÕES DIFERENTES]
+
+**VALIDAÇÕES:**
+- Total diário: 1400-1800 kcal
+- Carboidratos: 40-50% das calorias
+- Proteínas: 20-30% das calorias
+- Gorduras: 25-35% das calorias
+- Fibras: mínimo 25g/dia
+- Priorizar alimentos com IG < 55
+""",
             agent=self._agent,
-            expected_output="Recomendações nutricionais e substituições",
+            expected_output="Plano alimentar semanal completo com 7 dias, 5 refeições/dia, macronutrientes detalhados e substituições",
         )
 
         crew = Crew(

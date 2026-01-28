@@ -1,0 +1,9 @@
+{
+  "freq_min": 15,
+  "lookback": 20,
+  "offsets": [2, 4, 6],
+  "target": "glucose",
+  "scaler": "StandardScaler",
+  "model_name": "shanghai_lstm_v1",
+  "units": "mg/dL"
+}

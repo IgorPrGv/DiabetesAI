@@ -338,6 +338,22 @@
         color: #8a9ab0;
         font-size: 14px;
       }
+      .chart-header{
+        display:grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items:center;
+        margin-bottom: 10px;
+      }
+      .chart-title{
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .chart-date{
+        font-size: 14px;
+        font-weight: 600;
+        opacity: .75;
+      }
+
       .legend-row {
         display: flex;
         gap: 10px;
@@ -607,6 +623,7 @@
         max-height: none !important;
         flex: 1 1 auto;
       }
+
       .chat-widget.expanded .chat-messages {
         max-height: none;
         flex: 1 1 auto;
@@ -1027,8 +1044,14 @@
           <div class="stat-card"><div class="stat-label">Média</div><div class="stat-value">{{vm.glucoseStats.average}} mg/dL</div></div>
         </div>
 
+        
         <div class="section-card">
-          <div class="section-title">Histórico de Glicemias</div>
+          <div class="chart-header">
+            <div class="chart-title">Histórico de glicemias</div>
+            <div class="chart-date">{{vm.chartDateLabel}}</div>
+            <div></div>
+          </div>
+
           <div style="position: relative; height: 300px; margin-top: 12px;">
             <canvas id="glucoseChart"></canvas>
           </div>
@@ -1045,6 +1068,57 @@
         </div>
 
         <div class="section-card">
+          <div class="section-title">Upload de Sessão (CSV)</div>
+
+          <div class="form-row" style="margin-top: 12px; align-items: center; justify-content: space-between; gap: 16px;">
+            <div style="display:flex; flex-direction: column; gap:6px;">
+              <div class="section-subtitle" style="margin:0;">Envie um CSV do Shanghai para gerar previsão (+30/+60/+90)</div>
+              <div class="helper-text" style="margin:0;" ng-if="vm.glucoseSelectedFileName">
+                Selecionado: <strong>{{vm.glucoseSelectedFileName}}</strong>
+              </div>
+            </div>
+
+            <input class="input" type="file" id="glucoseCsvFile" accept=".csv" style="display:none;"
+                  onchange="angular.element(this).scope().vm.onGlucoseFileSelected(this)" />
+
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button class="btn-primary" ng-click="vm.pickGlucoseCSV()">
+                Adicionar CSV
+              </button>
+
+              <button class="btn-primary"
+                      ng-click="vm.uploadGlucoseCSV()"
+                      ng-disabled="!vm.userId || !vm.glucoseHasFile || vm.glucoseUploading">
+                {{vm.glucoseUploading ? 'Enviando...' : 'Upload'}}
+              </button>
+
+              <button class="btn-primary"
+                      ng-click="vm.loadGlucoseSessions()"
+                      ng-disabled="!vm.userId || vm.loadingGlucoseSessions">
+                {{vm.loadingGlucoseSessions ? 'Carregando...' : 'Carregar Sessões'}}
+              </button>
+            </div>
+          </div>
+
+
+          <div class="helper-text" ng-if="vm.glucoseUploadStatus">{{vm.glucoseUploadStatus}}</div>
+
+          <div style="margin-top: 12px;" ng-if="vm.glucoseSessions && vm.glucoseSessions.length">
+            <div class="section-subtitle">Sessões Salvas</div>
+            <div class="card" style="margin-top: 10px; padding: 10px 12px;"
+                ng-repeat="s in vm.glucoseSessions">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                <div>
+                  <div><strong>#{{s.id}}</strong> — patient: {{s.patient_id}} — session: {{s.source_session_id}}</div>
+                  <div class="helper-text">anchor: {{s.anchor_time_iso}}</div>
+                </div>
+                <button class="btn-primary" ng-click="vm.openGlucoseSession(s.id)">Abrir</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- <div class="section-card">
           <div class="section-title">Registrar Leitura de Glicose</div>
           <div class="form-row">
             <div style="flex: 1; min-width: 200px;">
@@ -1065,7 +1139,7 @@
           </div>
           <div class="helper-text">Faixa normal: 70-140 mg/dL (jejum/pré-refeição)</div>
           <div class="helper-text" ng-if="vm.glucoseStatus">{{vm.glucoseStatus}}</div>
-        </div>
+        </div> -->
       </section>
 
       <section id="nutrition" class="section" ng-class="{active: vm.activeTab==='nutrition'}">
@@ -1598,9 +1672,15 @@
         vm.chatExpanded = false;
         vm.meals = [];
         vm.timeline = [];
+        vm.glucoseHasFile = false;
+        vm.glucoseSelectedFileName = "";
         vm.glucoseReadings = [];
         vm.glucoseStats = null;
         vm.newGlucoseReading = { value: null, timestamp: new Date().toISOString().slice(0, 16) };
+        vm.glucoseUploading = false;
+        vm.loadingGlucoseSessions = false;
+        vm.glucoseUploadStatus = "";
+        vm.glucoseSessions = [];
         vm.user_preferences = {
           low_sodium: false,
           mediterranean: false,
@@ -1995,6 +2075,20 @@
           }
         };
 
+
+        vm.pickGlucoseCSV = function () {
+          const el = document.getElementById("glucoseCsvFile");
+          if (el) el.click();
+        };
+
+        vm.onGlucoseFileSelected = function (inputEl) {
+          const f = inputEl && inputEl.files && inputEl.files[0];
+          vm.glucoseHasFile = !!f;
+          vm.glucoseSelectedFileName = f ? f.name : "";
+          try { $scope.$applyAsync(); } catch(e) {}
+        };
+
+
         vm.loadGlucoseReadings = function() {
           if (!vm.userId) return;
           $http.get(`/api/users/${vm.userId}/glucose-readings`).then((res) => {
@@ -2017,6 +2111,8 @@
                 hba1c: vm.glucoseStats.average > 0 ? ((vm.glucoseStats.average + 46.7) / 28.7).toFixed(1) + "%" : "N/A",
                 trend: vm.glucoseStats.tir >= 70 ? "Estável" : "Atenção necessária"
               };
+              vm.glucoseStats.average = vm.glycemic.avg?.value ?? vm.glucoseStats.average;
+              vm.glucoseStats.tir = vm.glycemic.tir_pct?.value ?? vm.glucoseStats.tir;
             }
           }).catch(() => {
             console.error("Erro ao carregar estatísticas de glicose");
@@ -2037,6 +2133,104 @@
           }).catch(() => {
             vm.glucoseStatus = "Erro ao adicionar leitura.";
           });
+        };
+
+        vm.loadGlucoseSessions = function() {
+          if (!vm.userId) return;
+          vm.loadingGlucoseSessions = true;
+          $http.get(`/api/glucose-sessions?user_id=${vm.userId}&limit=50`)
+            .then((res) => {
+              vm.glucoseSessions = (res.data && res.data.items) ? res.data.items : [];
+            })
+            .catch(() => {
+              vm.glucoseUploadStatus = "Erro ao carregar sessões salvas.";
+            })
+            .finally(() => {
+              vm.loadingGlucoseSessions = false;
+            });
+        };
+
+        vm.openGlucoseSession = function(dbSessionId) {
+          if (!vm.userId) return;
+          $http.get(`/api/glucose-sessions/${dbSessionId}?user_id=${vm.userId}`)
+            .then((res) => {
+              if (res.data && res.data.item && res.data.item.dashboard_payload) {
+                vm.applyGlucoseDashboard(res.data.item.dashboard_payload);
+                vm.glucoseUploadStatus = `Sessão #${dbSessionId} carregada.`;
+              } else {
+                vm.glucoseUploadStatus = "Sessão encontrada, mas sem payload.";
+              }
+            })
+            .catch(() => {
+              vm.glucoseUploadStatus = "Erro ao abrir sessão.";
+            });
+        };
+
+        vm.uploadGlucoseCSV = function() {
+          if (!vm.userId) {
+            vm.glucoseUploadStatus = "Faça login antes.";
+            return;
+          }
+
+          const fileInput = document.getElementById("glucoseCsvFile");
+          const file = fileInput && fileInput.files && fileInput.files[0];
+          if (!file) {
+            vm.glucoseUploadStatus = "Clique em “Adicionar CSV” e selecione um arquivo.";
+            return;
+          }
+
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("user_id", vm.userId);
+
+          vm.glucoseUploading = true;
+          vm.glucoseUploadStatus = "Enviando CSV e gerando previsão...";
+
+          $http.post("/api/glucose-sessions/upload", formData, {
+            transformRequest: angular.identity,
+            headers: { "Content-Type": undefined }
+          }).then((res) => {
+            if (res.data) {
+              vm.applyGlucoseDashboard(res.data);
+              vm.glucoseUploadStatus = "✅ Previsão gerada e dashboard atualizado.";
+              // opcional: atualizar lista
+              vm.loadGlucoseSessions();
+            } else {
+              vm.glucoseUploadStatus = "Upload ok, mas resposta vazia.";
+            }
+          }).catch((err) => {
+            const msg = (err && err.data && err.data.detail) ? err.data.detail : "Erro no upload/previsão.";
+            vm.glucoseUploadStatus = msg;
+          }).finally(() => {
+            vm.glucoseUploading = false;
+          });
+        };
+
+        vm.applyGlucoseDashboard = function(payload) {
+          // Alerts
+          vm.alerts = payload.alerts || [];
+
+          // Cards
+          if (payload.cards) {
+            vm.glycemic = {
+              current: (payload.cards.current_mg_dl != null) ? (payload.cards.current_mg_dl + " mg/dL") : "N/A",
+              average: (payload.cards.average_mg_dl != null) ? (payload.cards.average_mg_dl + " mg/dL") : "N/A",
+              hba1c: (payload.cards.estimated_hba1c_pct != null) ? (payload.cards.estimated_hba1c_pct + "%") : "N/A",
+              trend: payload.cards.trend || "N/A"
+            };
+          }
+
+          // Stats grid (se você quiser manter TIR/TAR/TBR
+          if (payload.glucoseStats) vm.glucoseStats = payload.glucoseStats;
+
+          vm.chartDateLabel = payload?.meta?.anchor_time
+            ? new Date(payload.meta.anchor_time).toLocaleDateString("pt-BR")
+            : "";
+
+          // Chart
+          if (payload.points && Array.isArray(payload.points)) {
+            vm.updateGlucoseForecastChart(payload.points);
+          }
         };
 
         vm.logout = function() {
@@ -2722,49 +2916,189 @@
           }
         };
 
-        vm.updateGlucoseChart = function(readings) {
-          if (!readings || readings.length === 0) return;
-          const sorted = readings.slice().sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-          const labels = sorted.map(r => {
-            const date = new Date(r.timestamp);
-            return date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        function fmtHour(iso) {
+          if (!iso) return "";
+          const d = new Date(iso);
+          return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        }
+
+        vm.updateGlucoseForecastChart = function(points) {
+          if (!points || points.length === 0) return;
+
+          // 1. Processar Timestamps para garantir alinhamento
+          points.forEach(p => { p._ts = new Date(p.timestamp).getTime(); });
+          points.sort((a, b) => a._ts - b._ts);
+
+          // 2. Separar Observado vs Predito
+          const observed = points.filter(p => p.type === "observed");
+          const predicted = points.filter(p => p.type === "predicted");
+
+          // Mapas para acesso rápido
+          const obsMap = new Map(observed.map(p => [p._ts, p.value_mg_dl]));
+          const predMap = new Map(predicted.map(p => [p._ts, p.value_mg_dl]));
+
+          // 3. Gerar Eixo X Único (Labels)
+          const allTs = Array.from(new Set([...obsMap.keys(), ...predMap.keys()])).sort((a, b) => a - b);
+          const labels = allTs.map(ts => fmtHour(new Date(ts).toISOString()));
+
+          // 4. Gerar Séries de Dados (Alinhadas com Labels)
+          const obsSeries = allTs.map(ts => obsMap.has(ts) ? obsMap.get(ts) : null);
+          
+          // Lógica da Ponte (Conectar visualmente Observado -> Predito)
+          // Se um ponto predito não existe, mas é o momento exato do último observado, usamos o observado.
+          const lastObsTs = observed.length > 0 ? observed[observed.length - 1]._ts : null;
+          const lastObsVal = observed.length > 0 ? observed[observed.length - 1].value_mg_dl : null;
+
+          const predSeries = allTs.map(ts => {
+            if (predMap.has(ts)) return predMap.get(ts);
+            if (ts === lastObsTs) return lastObsVal; // Ponte visual
+            return null;
           });
-          const values = sorted.map(r => r.value_mg_dl);
+//           let anchorTs = null;
+// 
+//           if (anchorTimeIso) {
+//             anchorTs = new Date(anchorTimeIso).getTime();
+//           }
+// 
+//           const anchorVal = anchorTs !== null && obsMap.has(anchorTs)
+//           ? obsMap.get(anchorTs)
+//           : null;
+// 
+//         const predSeries = allTs.map(ts => {
+//           if (predMap.has(ts)) return predMap.get(ts);
+//           if (anchorTs !== null && ts === anchorTs) return anchorVal; // ponte no ANCHOR
+//           return null;
+//         });
+
+
+          // 5. Linhas Limites (Agora garantimos o tamanho exato e cores VIVAS)
+          const len = labels.length;
+          const limit70 = new Array(len).fill(70);
+          const limit140 = new Array(len).fill(140);
+          const limit180 = new Array(len).fill(180);
+
           const ctx = document.getElementById("glucoseChart");
           if (!ctx) return;
           if (vm.glucoseChart) vm.glucoseChart.destroy();
+
           vm.glucoseChart = new Chart(ctx, {
             type: "line",
             data: {
               labels: labels,
-              datasets: [{
-                label: "Glicose (mg/dL)",
-                data: values,
-                borderColor: "#3fb7ff",
-                backgroundColor: "rgba(63, 183, 255, 0.1)",
-                tension: 0.4,
-                fill: true
-              }, {
-                label: "Faixa Alvo (70-140)",
-                data: Array(labels.length).fill(140),
-                borderColor: "#2f7a36",
-                borderDash: [5, 5],
-                fill: false
-              }, {
-                label: "Limite Inferior (70)",
-                data: Array(labels.length).fill(70),
-                borderColor: "#2f7a36",
-                borderDash: [5, 5],
-                fill: false
-              }]
+              datasets: [
+                // --- LINHAS LIMITES (Vivas e Sólidas) ---
+                {
+                  label: "Hipoglicemia (70)",
+                  data: limit70,
+                  borderColor: "#dc3545", // Vermelho Vivo
+                  borderWidth: 2,         // Mais grossa
+                  borderDash: [5, 5],
+                  pointRadius: 0,
+                  fill: false,
+                  order: 10 // Joga para o fundo
+                },
+                {
+                  label: "Alvo (140)",
+                  data: limit140,
+                  borderColor: "#28a745", // Verde Vivo
+                  borderWidth: 2,         // Mais grossa
+                  borderDash: [5, 5],
+                  pointRadius: 0,
+                  fill: false,
+                  order: 10
+                },
+                {
+                  label: "Hiperglicemia (180)",
+                  data: limit180,
+                  borderColor: "#ffc107", // Amarelo/Laranja Vivo
+                  borderWidth: 2,         // Mais grossa
+                  borderDash: [5, 5],
+                  pointRadius: 0,
+                  fill: false,
+                  order: 10
+                },
+
+                // --- DADOS REAIS ---
+                { 
+                  label: "Glicose Real", 
+                  data: obsSeries, 
+                  borderColor: "#0d6efd", // Azul Bootstrap Vivo
+                  backgroundColor: "#0d6efd",
+                  borderWidth: 3,
+                  pointRadius: 3,         // Pontos visíveis ao passar mouse
+                  pointHoverRadius: 7,    // Destaca bem ao passar mouse
+                  tension: 0.4,
+                  order: 1
+                },
+
+                // --- PREVISÃO IA ---
+                { 
+                  label: "Previsão IA", 
+                  data: predSeries, 
+                  borderColor: "#d63384", // Rosa Vivo
+                  backgroundColor: "#d63384",
+                  borderWidth: 3,
+                  borderDash: [5, 5],     // Tracejado clássico
+                  pointRadius: 4,         // Pontos maiores na previsão
+                  pointHoverRadius: 8,
+                  tension: 0.4,
+                  cubicInterpolationMode: 'monotone', // Curva suave
+                  spanGaps: true,         // Liga os pontos
+                  order: 0 // Traz para frente
+                }
+              ]
             },
             options: {
               responsive: true,
               maintainAspectRatio: false,
-              scales: { y: { beginAtZero: false, min: 50, max: 250 } }
+              // --- INTERAÇÃO ESTILO FIGMA ---
+              interaction: {
+                mode: 'nearest',  // Só pega o ponto mais próximo do mouse
+                axis: 'x',
+                intersect: true   // OBRIGA o mouse a encostar no ponto para mostrar o tooltip
+              },
+              plugins: {
+                legend: {
+                  labels: {
+                    usePointStyle: true,
+                    // Esconde as linhas limites da legenda para limpar o visual
+                    filter: item => !item.text.includes("Hipoglicemia") && !item.text.includes("Alvo") && !item.text.includes("Hiper")
+                  }
+                },
+                tooltip: {
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  titleColor: '#000',
+                  bodyColor: '#000',
+                  borderColor: '#ddd',
+                  borderWidth: 1,
+                  displayColors: true,
+                  callbacks: {
+                    // Remove tooltip das linhas limites
+                    label: function(context) {
+                      if (context.dataset.label.includes("Hipoglicemia") || 
+                          context.dataset.label.includes("Alvo") ||
+                          context.dataset.label.includes("Hiper")) return null;
+                      return ` ${context.dataset.label}: ${context.raw} mg/dL`;
+                    }
+                  }
+                }
+              },
+              scales: {
+                y: {
+                  title: { display: true, text: "mg/dL", font: { weight: 'bold' } },
+                  min: 40,  // Fixa um mínimo razoável
+                  suggestedMax: 250,
+                  grid: { color: "#f0f0f0" }
+                },
+                x: {
+                  grid: { display: false }, 
+                  ticks: { maxTicksLimit: 8 }
+                }
+              }
             }
           });
         };
+        
 
         // Load user data
         vm.loadUser = function() {

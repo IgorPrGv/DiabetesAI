@@ -25,6 +25,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from .meal_plan_rag import generate_meal_plan
 from services.gateway_service import GatewayService
 from services.chat_service import ChatService
+from .glucose_api import router as glucose_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -38,9 +39,10 @@ chat_service = ChatService()
 
 # Create API router with /api prefix
 api_router = APIRouter(prefix="/api")
+api_router.include_router(glucose_router)
 
 # Serve minimal frontend scaffold
-app.mount("/static", StaticFiles(directory="/home/davi/topicos/frontend"), name="static")
+# app.mount("/static", StaticFiles(directory="/home/davi/topicos/frontend"), name="static")
 
 # Enable CORS (allows frontend to call the API)
 app.add_middleware(
@@ -230,37 +232,37 @@ class ChatResponse(BaseModel):
 # ============================================================================
 # API Endpoints
 # ============================================================================
-
-@app.get("/")
-@app.get("/ui")
-async def serve_ui():
-    """Serve the frontend index page which redirects based on auth status"""
-    return FileResponse("/home/davi/topicos/frontend/index.html")
-
-
-@app.get("/login")
-@app.get("/login.html")
-async def serve_login():
-    return FileResponse("/home/davi/topicos/frontend/login.html")
-
-
-@app.get("/register")
-@app.get("/register.html")
-async def serve_register():
-    return FileResponse("/home/davi/topicos/frontend/register.html")
-
-
-@app.get("/home")
-@app.get("/home.html")
-async def serve_home():
-    return FileResponse("/home/davi/topicos/frontend/home.html")
-
-
-@app.get("/onboarding")
-@app.get("/onboarding.html")
-async def serve_onboarding():
-    """Serve onboarding page for first-time users"""
-    return FileResponse("/home/davi/topicos/frontend/onboarding.html")
+# 
+# @app.get("/")
+# @app.get("/ui")
+# async def serve_ui():
+#     """Serve the frontend index page which redirects based on auth status"""
+#     return FileResponse("/home/davi/topicos/frontend/index.html")
+# 
+# 
+# @app.get("/login")
+# @app.get("/login.html")
+# async def serve_login():
+#     return FileResponse("/home/davi/topicos/frontend/login.html")
+# 
+# 
+# @app.get("/register")
+# @app.get("/register.html")
+# async def serve_register():
+#     return FileResponse("/home/davi/topicos/frontend/register.html")
+# 
+# 
+# @app.get("/home")
+# @app.get("/home.html")
+# async def serve_home():
+#     return FileResponse("/home/davi/topicos/frontend/home.html")
+# 
+# 
+# @app.get("/onboarding")
+# @app.get("/onboarding.html")
+# async def serve_onboarding():
+#     """Serve onboarding page for first-time users"""
+#     return FileResponse("/home/davi/topicos/frontend/onboarding.html")
 
 
 @app.on_event("startup")
@@ -736,7 +738,7 @@ async def create_user_endpoint(profile: UserProfile):
     if not auth_user_id:
         raise HTTPException(status_code=400, detail="auth_user_id is required")
     # Merge with empty profile to ensure all fields exist
-    from storage import create_empty_profile
+    from .storage import create_empty_profile
     empty_profile = create_empty_profile()
     profile_dict = profile.dict()
     # Merge non-None values into empty profile

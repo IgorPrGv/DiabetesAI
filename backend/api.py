@@ -40,7 +40,7 @@ chat_service = ChatService()
 api_router = APIRouter(prefix="/api")
 
 # Serve minimal frontend scaffold
-app.mount("/static", StaticFiles(directory="/home/davi/topicos/frontend"), name="static")
+app.mount("/static", StaticFiles(directory="/workspaces/DiabetesAI/frontend"), name="static")
 
 # Enable CORS (allows frontend to call the API)
 app.add_middleware(
@@ -235,32 +235,32 @@ class ChatResponse(BaseModel):
 @app.get("/ui")
 async def serve_ui():
     """Serve the frontend index page which redirects based on auth status"""
-    return FileResponse("/home/davi/topicos/frontend/index.html")
+    return FileResponse("/workspaces/DiabetesAI/frontend/index.html")
 
 
 @app.get("/login")
 @app.get("/login.html")
 async def serve_login():
-    return FileResponse("/home/davi/topicos/frontend/login.html")
+    return FileResponse("/workspaces/DiabetesAI/frontend/login.html")
 
 
 @app.get("/register")
 @app.get("/register.html")
 async def serve_register():
-    return FileResponse("/home/davi/topicos/frontend/register.html")
+    return FileResponse("/workspaces/DiabetesAI/frontend/register.html")
 
 
 @app.get("/home")
 @app.get("/home.html")
 async def serve_home():
-    return FileResponse("/home/davi/topicos/frontend/home.html")
+    return FileResponse("/workspaces/DiabetesAI/frontend/home.html")
 
 
 @app.get("/onboarding")
 @app.get("/onboarding.html")
 async def serve_onboarding():
     """Serve onboarding page for first-time users"""
-    return FileResponse("/home/davi/topicos/frontend/onboarding.html")
+    return FileResponse("/workspaces/DiabetesAI/frontend/onboarding.html")
 
 
 @app.on_event("startup")

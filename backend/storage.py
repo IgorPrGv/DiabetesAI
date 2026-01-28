@@ -15,18 +15,18 @@ from sqlalchemy.exc import SQLAlchemyError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Database configuration - PostgreSQL only
+# Database configuration - PostgreSQL or SQLite
 PROJECT_ROOT = Path(__file__).parent.absolute()
 DATA_DIR = PROJECT_ROOT / "data"
 
-# PostgreSQL database URL (required)
+# Database URL (PostgreSQL or SQLite)
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg2://diabetes_user:diabetes123@localhost:5432/diabetesai",
+    "sqlite:///./data/diabetesai.db",
 )
 
-if not DATABASE_URL.startswith("postgresql"):
-    raise ValueError("DATABASE_URL must be a PostgreSQL connection string")
+if not (DATABASE_URL.startswith("postgresql") or DATABASE_URL.startswith("sqlite")):
+    raise ValueError("DATABASE_URL must be a PostgreSQL or SQLite connection string")
 
 # Ensure data directory exists for other data files
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -74,21 +74,28 @@ class ConsumedMealRecord(Base):
 
 
 def _engine():
-    """Create and return a PostgreSQL SQLAlchemy engine."""
+    """Create and return a SQLAlchemy engine for PostgreSQL or SQLite."""
     try:
-        engine_kwargs = {
-            "future": True,
-            "pool_pre_ping": True,  # Test connections before using them
-            "echo": False,  # Set to True for SQL logging during development
-            "pool_size": 10,  # Connection pool size
-            "max_overflow": 20,  # Max overflow connections
-            "pool_timeout": 30,  # Connection timeout
-            "pool_recycle": 3600,  # Recycle connections after 1 hour
-        }
+        if DATABASE_URL.startswith("sqlite"):
+            engine_kwargs = {
+                "future": True,
+                "echo": False,  # Set to True for SQL logging during development
+            }
+            logger.info("🔧 Using SQLite database configuration")
+        else:
+            engine_kwargs = {
+                "future": True,
+                "pool_pre_ping": True,  # Test connections before using them
+                "echo": False,  # Set to True for SQL logging during development
+                "pool_size": 10,  # Connection pool size
+                "max_overflow": 20,  # Max overflow connections
+                "pool_timeout": 30,  # Connection timeout
+                "pool_recycle": 3600,  # Recycle connections after 1 hour
+            }
+            logger.info("🔧 Using PostgreSQL database configuration")
 
-        logger.info("🔧 Using PostgreSQL database configuration")
         engine = create_engine(DATABASE_URL, **engine_kwargs)
-        logger.info("✅ PostgreSQL database engine created successfully")
+        logger.info("✅ Database engine created successfully")
         return engine
     except Exception as e:
         logger.error(f"❌ Failed to create database engine: {e}")
@@ -96,14 +103,14 @@ def _engine():
 
 
 def init_db() -> None:
-    """Initialize PostgreSQL database tables."""
+    """Initialize database tables."""
     try:
-        logger.info("Initializing PostgreSQL database...")
+        logger.info("Initializing database...")
         engine = _engine()
 
         # Create all tables
         Base.metadata.create_all(engine)
-        logger.info("✅ PostgreSQL database tables created successfully")
+        logger.info("✅ Database tables created successfully")
 
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
@@ -138,10 +145,11 @@ def save_plan(request_payload: Dict[str, Any], response_payload: Dict[str, Any])
 
 
 def check_database_health() -> Dict[str, Any]:
-    """Check PostgreSQL database health and connectivity."""
+    """Check database health and connectivity."""
     try:
-        logger.debug("Checking PostgreSQL database health...")
+        logger.debug("Checking database health...")
         engine = _engine()
+        db_type = "PostgreSQL" if DATABASE_URL.startswith("postgresql") else "SQLite"
 
         with Session(engine) as session:
             # Test basic connectivity
@@ -153,15 +161,21 @@ def check_database_health() -> Dict[str, Any]:
             auth_users_count = session.query(AuthUserRecord).count()
             consumed_meals_count = session.query(ConsumedMealRecord).count()
 
-            # Get database size from PostgreSQL
-            db_size_result = session.execute(
-                text("SELECT pg_database_size(current_database())")
-            ).scalar()
-            db_size = db_size_result if db_size_result else 0
+            # Get database size
+            if db_type == "PostgreSQL":
+                db_size_result = session.execute(
+                    text("SELECT pg_database_size(current_database())")
+                ).scalar()
+                db_size = db_size_result if db_size_result else 0
+            else:  # SQLite
+                # For SQLite, get file size
+                import os
+                db_path = DATABASE_URL.replace("sqlite:///", "")
+                db_size = os.path.getsize(db_path) if os.path.exists(db_path) else 0
 
             health_info = {
                 "status": "healthy",
-                "database_type": "PostgreSQL",
+                "database_type": db_type,
                 "database_url": DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else "localhost",
                 "database_size_bytes": db_size,
                 "database_size_mb": round(db_size / (1024 * 1024), 2),
@@ -174,14 +188,14 @@ def check_database_health() -> Dict[str, Any]:
                 "last_check": datetime.utcnow().isoformat(),
             }
 
-            logger.info(f"PostgreSQL health check passed. Tables: plans={plans_count}, users={users_count}")
+            logger.info(f"{db_type} health check passed. Tables: plans={plans_count}, users={users_count}")
             return health_info
 
     except SQLAlchemyError as e:
-        logger.error(f"PostgreSQL health check failed: {e}")
+        logger.error(f"{db_type} health check failed: {e}")
         return {
             "status": "unhealthy",
-            "database_type": "PostgreSQL",
+            "database_type": db_type,
             "database_url": DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else "localhost",
             "database_size_bytes": 0,
             "database_size_mb": 0,
@@ -194,7 +208,7 @@ def check_database_health() -> Dict[str, Any]:
         logger.error(f"Unexpected error during health check: {e}")
         return {
             "status": "unhealthy",
-            "database_type": "PostgreSQL",
+            "database_type": db_type,
             "database_url": DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else "localhost",
             "database_size_bytes": 0,
             "database_size_mb": 0,

@@ -44,21 +44,33 @@ fi
 
 # Parâmetros padrão (podem ser sobrescritos pelo .env)
 export LLM_PROVIDER=${LLM_PROVIDER:-gemini}
-export GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+export GEMINI_MODEL=${GEMINI_MODEL:-gemini-flash-latest}
 export EMBEDDING_DEVICE=${EMBEDDING_DEVICE:-cpu}
 
-# Verificar se a API key está configurada
+# Verificar dependências Python críticas
+echo -e "${YELLOW}🔍 Verificando dependências Python...${NC}"
+python -c "
+try:
+    import fastapi, uvicorn, crewai, chromadb, sentence_transformers
+    print('✅ Dependências principais OK')
+except ImportError as e:
+    print(f'❌ Erro de importação: {e}')
+    print('   Execute: pip install -r requirements.txt')
+    exit(1)
+"
 if [ -z "$GEMINI_API_KEY" ]; then
     echo -e "${RED}❌ Erro: GEMINI_API_KEY não configurada!${NC}"
     echo "   Configure no arquivo .env: GEMINI_API_KEY=AIzaSy..."
     exit 1
 fi
 
-# Verificar formato da API key
-if [[ ! "$GEMINI_API_KEY" =~ ^AIza ]]; then
-    echo -e "${YELLOW}⚠️  AVISO: API Key não começa com 'AIza'${NC}"
-    echo "   A chave pode não ser válida (formato esperado: AIzaSy...)"
-    echo -e "${YELLOW}   Continuando mesmo assim...${NC}\n"
+# Verificar se ngrok está instalado e configurado
+if command -v ngrok >/dev/null 2>&1; then
+    echo -e "${GREEN}✅ ngrok encontrado${NC}"
+    NGROK_AVAILABLE=true
+else
+    echo -e "${YELLOW}⚠️  ngrok não encontrado (opcional)${NC}"
+    NGROK_AVAILABLE=false
 fi
 
 # Verificar e limpar portas ocupadas
@@ -96,9 +108,17 @@ MODE="${1:-foreground}"
 
 if [ "$MODE" = "background" ] || [ "$MODE" = "bg" ]; then
     # Executar em background
-    echo -e "${YELLOW}🚀 Iniciando servidor em background...${NC}"
+    echo -e "${YELLOW}🚀 Iniciando servidor em background com multithread...${NC}"
+    echo -e "${YELLOW}   Configuração: 4 workers = suporte a múltiplas sessões simultâneas${NC}"
     LOG_FILE="/tmp/api_server_$(date +%Y%m%d_%H%M%S).log"
-    nohup uvicorn backend.api:app --host 0.0.0.0 --port 8000 > "$LOG_FILE" 2>&1 &
+    nohup uvicorn backend.api:app \
+        --host 0.0.0.0 \
+        --port 8000 \
+        --workers 4 \
+        --loop uvloop \
+        --http httptools \
+        --access-log \
+        --log-level info > "$LOG_FILE" 2>&1 &
     SERVER_PID=$!
     
     echo -e "${GREEN}✅ Servidor iniciado!${NC}"
@@ -115,6 +135,30 @@ if [ "$MODE" = "background" ] || [ "$MODE" = "bg" ]; then
     if ps -p $SERVER_PID > /dev/null; then
         if curl -s http://localhost:8000/api/health > /dev/null 2>&1; then
             echo -e "\n${GREEN}✅ Servidor está respondendo!${NC}"
+            
+            # Iniciar ngrok se disponível
+            if [ "$NGROK_AVAILABLE" = true ]; then
+                echo -e "${YELLOW}🚀 Iniciando ngrok tunnel...${NC}"
+                NGROK_LOG="/tmp/ngrok_$(date +%Y%m%d_%H%M%S).log"
+                nohup ngrok http 8000 > "$NGROK_LOG" 2>&1 &
+                NGROK_PID=$!
+                echo -e "${GREEN}✅ ngrok iniciado!${NC}"
+                echo -e "   PID: $NGROK_PID"
+                echo -e "   Log: $NGROK_LOG"
+                echo -e "   Aguarde alguns segundos para o URL aparecer..."
+                sleep 5
+                if ps -p $NGROK_PID > /dev/null; then
+                    NGROK_URL=$(curl -s http://localhost:4040/api/tunnels | grep -o '"public_url":"[^"]*' | grep -o 'https://[^"]*')
+                    if [ -n "$NGROK_URL" ]; then
+                        echo -e "   URL Pública: $NGROK_URL"
+                    else
+                        echo -e "${YELLOW}⚠️  ngrok iniciado mas URL ainda não disponível${NC}"
+                        echo -e "   Verifique: curl http://localhost:4040/api/tunnels"
+                    fi
+                else
+                    echo -e "${RED}❌ ngrok não iniciou${NC}"
+                fi
+            fi
         else
             echo -e "\n${YELLOW}⚠️  Servidor iniciado mas ainda não está respondendo${NC}"
             echo -e "   Verifique os logs: tail -f $LOG_FILE"
@@ -126,9 +170,44 @@ if [ "$MODE" = "background" ] || [ "$MODE" = "bg" ]; then
     fi
 else
     # Executar em foreground
-    echo -e "${YELLOW}🚀 Iniciando servidor em foreground...${NC}"
+    echo -e "${YELLOW}🚀 Iniciando servidor em foreground com multithread...${NC}"
+    echo -e "${YELLOW}   Configuração: 4 workers = suporte a múltiplas sessões simultâneas${NC}"
     echo -e "${GREEN}✅ Servidor rodando em: http://localhost:8000${NC}"
     echo -e "${YELLOW}   Pressione Ctrl+C para parar${NC}\n"
     
-    uvicorn backend.api:app --host 0.0.0.0 --port 8000
+    # Iniciar ngrok se disponível
+    if [ "$NGROK_AVAILABLE" = true ]; then
+        echo -e "${YELLOW}🚀 Iniciando ngrok tunnel em background...${NC}"
+        NGROK_LOG="/tmp/ngrok_$(date +%Y%m%d_%H%M%S).log"
+        nohup ngrok http 8000 > "$NGROK_LOG" 2>&1 &
+        NGROK_PID=$!
+        echo -e "${GREEN}✅ ngrok iniciado!${NC}"
+        echo -e "   PID: $NGROK_PID"
+        echo -e "   Log: $NGROK_LOG"
+        echo -e "   Aguarde alguns segundos para o URL aparecer..."
+        sleep 5
+        if ps -p $NGROK_PID > /dev/null; then
+            NGROK_URL=$(curl -s http://localhost:4040/api/tunnels | grep -o '"public_url":"[^"]*' | grep -o 'https://[^"]*')
+            if [ -n "$NGROK_URL" ]; then
+                echo -e "${GREEN}🌐 URL Pública: $NGROK_URL${NC}"
+                echo -e "${GREEN}🔗 Acesse sua aplicação remotamente!${NC}\n"
+            else
+                echo -e "${YELLOW}⚠️  ngrok iniciado mas URL ainda não disponível${NC}"
+                echo -e "   Verifique: curl http://localhost:4040/api/tunnels"
+            fi
+        else
+            echo -e "${RED}❌ ngrok não iniciou${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠️  ngrok não disponível - apenas acesso local${NC}"
+    fi
+    
+    uvicorn backend.api:app \
+        --host 0.0.0.0 \
+        --port 8000 \
+        --workers 4 \
+        --loop uvloop \
+        --http httptools \
+        --access-log \
+        --log-level info
 fi

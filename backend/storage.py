@@ -72,6 +72,16 @@ class ConsumedMealRecord(Base):
     consumed_at = Column(DateTime, nullable=False, index=True)
     notes = Column(Text, nullable=True)  # Notas opcionais do usuário
 
+class GlucoseSessionRecord(Base):
+    __tablename__ = "glucose_sessions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    created_at = Column(DateTime, nullable=False)
+    user_id = Column(Integer, nullable=False, index=True)
+    patient_id = Column(Text, nullable=False, index=True)
+    source_session_id = Column(Text, nullable=False, index=True)
+    anchor_time_iso = Column(Text, nullable=False)
+    dashboard_payload = Column(JSON, nullable=False)
 
 def _engine():
     """Create and return a SQLAlchemy engine with proper configuration."""
@@ -635,4 +645,71 @@ def delete_user(user_id: int) -> bool:
         session.delete(row)
         session.commit()
         return True
+        
+def create_glucose_session(
+    user_id: int,
+    patient_id: str,
+    source_session_id: str,
+    anchor_time_iso: str,
+    dashboard_payload: Dict[str, Any],
+) -> int:
+    engine = _engine()
+    with Session(engine) as session:
+        record = GlucoseSessionRecord(
+            created_at=datetime.utcnow(),
+            user_id=user_id,
+            patient_id=patient_id,
+            source_session_id=source_session_id,
+            anchor_time_iso=anchor_time_iso,
+            dashboard_payload=dashboard_payload,
+        )
+        session.add(record)
+        session.commit()
+        session.refresh(record)
+        return int(record.id)
 
+
+def list_glucose_sessions(user_id: int, limit: int = 50) -> List[Dict[str, Any]]:
+    engine = _engine()
+    with Session(engine) as session:
+        rows = (
+            session.query(GlucoseSessionRecord)
+            .filter(GlucoseSessionRecord.user_id == user_id)
+            .order_by(GlucoseSessionRecord.id.desc())
+            .limit(limit)
+            .all()
+        )
+        return [
+            {
+                "id": row.id,
+                "created_at": row.created_at.isoformat(),
+                "patient_id": row.patient_id,
+                "source_session_id": row.source_session_id,
+                "anchor_time_iso": row.anchor_time_iso,
+            }
+            for row in rows
+        ]
+
+
+def get_glucose_session(db_session_id: int, user_id: int) -> Optional[Dict[str, Any]]:
+    engine = _engine()
+    with Session(engine) as session:
+        row = (
+            session.query(GlucoseSessionRecord)
+            .filter(
+                GlucoseSessionRecord.id == db_session_id,
+                GlucoseSessionRecord.user_id == user_id,
+            )
+            .first()
+        )
+        if not row:
+            return None
+        return {
+            "id": row.id,
+            "created_at": row.created_at.isoformat(),
+            "user_id": row.user_id,
+            "patient_id": row.patient_id,
+            "source_session_id": row.source_session_id,
+            "anchor_time_iso": row.anchor_time_iso,
+            "dashboard_payload": row.dashboard_payload,
+        }

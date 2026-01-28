@@ -1,0 +1,18 @@
+{
+  "name": "diabetesai",
+  "version": "1.0.0",
+  "description": "Sistema colaborativo de agentes IA especializados em planejamento alimentar personalizado para gestão de Diabetes Tipo 2 e hipertensão.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "playwright": "^1.58.0"
+  }
+}

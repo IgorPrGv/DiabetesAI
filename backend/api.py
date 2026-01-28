@@ -24,6 +24,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from .meal_plan_rag import generate_meal_plan
 from services.gateway_service import GatewayService
 from services.chat_service import ChatService
+from .glucose_api import router as glucose_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -37,6 +38,7 @@ chat_service = ChatService()
 
 # Create API router with /api prefix
 api_router = APIRouter(prefix="/api")
+api_router.include_router(glucose_router)
 
 # Serve minimal frontend scaffold
 # app.mount("/static", StaticFiles(directory="/home/davi/topicos/frontend"), name="static")

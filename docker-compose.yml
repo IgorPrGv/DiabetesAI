@@ -1,0 +1,137 @@
+# docker-compose.yml
+#
+# Local dev + tests stack:
+# - backend (FastAPI + agents) with hot reload and persistent data
+# - frontend (Nginx) serving AngularJS + reverse proxy /api/ -> backend
+#
+# Notes:
+# - Uses env_file: .env for GEMINI_API_KEY, DATABASE_URL, etc.
+# - Adds a read-only mount for ./tests so pytest can run inside the backend container.
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: diabetesai-postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"  
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d diabetesai"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: diabetesai-backend
+    env_file:
+      - .env
+    environment:
+      # Ensure imports resolve when running tests or uvicorn
+      - PYTHONPATH=/app
+      - TRANSFORMERS_NO_TF=1
+      - TRANSFORMERS_NO_FLAX=1
+      - TF_USE_LEGACY_KERAS=0
+    ports:
+      - "8000:8000"
+    volumes:
+      # Hot reload / live editing
+      - ./:/app
+      - ./data:/app/data
+      - ./diabetesai.db:/app/diabetesai.db
+      # Tests available inside container for pytest execution
+      - ./tests:/app/tests:ro
+    command: uvicorn backend.api:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: diabetesai-frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:
+# Default bridge network is sufficient; Docker Compose will create one automatically.
+
+# 
+# services:
+#   # --- 1. Banco de Dados ---
+#   postgres:
+#     image: postgres:16-alpine
+#     container_name: diabetesai-postgres
+#     env_file:
+#       - .env
+#     environment:
+#       POSTGRES_DB: ${POSTGRES_DB}
+#       POSTGRES_USER: ${POSTGRES_USER}
+#       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+#     ports:
+#       - "5432:5432"
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+#     networks:
+#       - diabetes_net
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U postgres -d diabetesai"]
+#       interval: 5s
+#       timeout: 5s
+#       retries: 20
+# 
+#   # --- 2. Backend ---
+#   backend:
+#     build:
+#       context: .
+#       dockerfile: backend/Dockerfile
+#     container_name: diabetesai-backend
+#     env_file:
+#       - .env
+#     environment:
+#       - PYTHONPATH=/app
+#       - DATABASE_URL=${DATABASE_URL}
+#     ports:
+#       - "8000:8000"
+#     volumes:
+#       - ./backend:/app/backend
+#       - ./data:/app/data
+#       - ./tests:/app/tests:ro
+#     depends_on:
+#       postgres:
+#         condition: service_healthy
+#     networks:
+#       - diabetes_net
+#     command: uvicorn backend.api:app --host 0.0.0.0 --port 8000 --reload
+# 
+#   # --- 3. Frontend ---
+#   frontend:
+#     build:
+#       context: ./frontend
+#       dockerfile: Dockerfile
+#     container_name: diabetesai-frontend
+#     ports:
+#       - "8080:80"
+#     depends_on:
+#       - backend
+#     networks:
+#       - diabetes_net
+# 
+# # --- Configurações de Rede e Volume ---
+# networks:
+#   diabetes_net:
+#     driver: bridge
+# 
+# volumes:
+#   postgres_data:

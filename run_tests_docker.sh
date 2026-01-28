@@ -1,4 +1,3 @@
-cat > run_tests_docker.sh <<'EOF'
 #!/usr/bin/env bash
 # run_tests_docker.sh
 #
@@ -77,4 +76,3 @@ fi
 echo "[INFO] Running pytest..."
 dc exec -T "${BACKEND_SERVICE}" pytest -q /app/tests
 echo "[OK] Tests completed."
-EOF

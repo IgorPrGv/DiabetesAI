@@ -2,6 +2,20 @@
 
 Sistema colaborativo de agentes IA especializados em planejamento alimentar personalizado para gestão de Diabetes Tipo 2 e hipertensão.
 
+## Fotos do sistema
+
+<p align="center">
+  <img src="assets/DT2M_1.png" width="900" />
+</p>
+
+<p align="center">
+  <img src="assets/DT2M_2.png" width="900" />
+</p>
+
+<p align="center">
+  <img src="assets/DT2M_3.png" width="900" />
+</p>
+
 ## 🎯 Visão Geral
 
 O DiabetesAI Care utiliza múltiplos agentes especializados trabalhando em conjunto através de uma arquitetura RAG (Retrieval-Augmented Generation):

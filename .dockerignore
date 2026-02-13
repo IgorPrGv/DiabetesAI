@@ -1,0 +1,34 @@
+# Ignorar ambiente virtual (O GRANDE VILÃO DE ESPAÇO)
+venv/
+.venv/
+env/
+
+# Ignorar versionamento
+.git/
+.gitignore
+
+# Ignorar cache do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ignorar dados locais (Eles serão montados via Volume, não precisam ser copiados)
+data/
+diabetesai.db
+*.sqlite
+*.db
+
+# Ignorar logs
+logs/
+*.log
+
+# Ignorar arquivos do Frontend (se tiver node_modules na raiz)
+node_modules/
+frontend/node_modules/
+dist/
+.idea/
+.vscode/

@@ -1,7 +1,7 @@
 import os
 import json
 import re
-from typing import Any, Dict
+from typing import Any, Dict, List
 from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process, LLM
 from backend.llm_providers import get_llm
@@ -34,34 +34,41 @@ class PlanJsonService:
         task = Task(
             description=f"""Você é um formatador JSON especializado. Sua única tarefa é converter o plano de refeições abaixo em um objeto JSON válido.
 
-INSTRUÇÕES CRÍTICAS:
+**INSTRUÇÕES CRÍTICAS:**
 1. Retorne APENAS o JSON, sem nenhum texto antes ou depois
 2. Não use markdown, não use code blocks, não use explicações
 3. O JSON deve ser válido e parseável
-4. Todos os campos do schema são OBRIGATÓRIOS
+4. TODOS os campos do schema são OBRIGATÓRIOS
+5. **IMPORTANTE**: Preserve a VARIEDADE do plano - NÃO duplique refeições entre dias diferentes
 
-SCHEMA EXATO (copie esta estrutura):
+**VERIFICAÇÃO DE VARIEDADE:**
+- Conte quantas vezes cada refeição aparece
+- Se uma refeição aparecer mais de 3 vezes na semana, é um ERRO
+- Cada tipo de refeição deve ter pelo menos 3 variações diferentes
+
+**SCHEMA EXATO:**
 {{
   "summary": {{
-    "goal": "string descrevendo o objetivo",
-    "region": "string da região",
-    "restrictions": ["lista", "de", "restrições"],
+    "goal": "Objetivo do plano (ex: Controle glicêmico para DM2)",
+    "region": "Região culinária (ex: Brasil/Nordeste)",
+    "restrictions": ["lista de restrições"],
     "glycemic_metrics": {{
-      "tir_pct": número ou null,
-      "tar_pct": número ou null,
-      "tbr_pct": número ou null
+      "tir_pct": {metrics.get('tir_pct')},
+      "tar_pct": {metrics.get('tar_pct')},
+      "tbr_pct": {metrics.get('tbr_pct')}
     }},
-    "alerts": ["lista", "de", "alertas"],
-    "meals_planned": número,
-    "glucose_checks": número,
-    "activities": número
+    "alerts": {alerts},
+    "meals_planned": 35,
+    "glucose_checks": 21,
+    "activities": 21
   }},
   "meals": [
     {{
+      "day": "SEGUNDA-FEIRA",
       "meal_type": "Café da manhã",
-      "name": "Nome da refeição",
+      "name": "Nome ÚNICO da refeição",
       "description": "Descrição detalhada",
-      "items": ["item1", "item2"],
+      "items": ["item1 (XXXg)", "item2 (XXXg)"],
       "food_items": [
         {{
           "name": "Nome do alimento",
@@ -84,49 +91,65 @@ SCHEMA EXATO (copie esta estrutura):
         "fat_g": 8,
         "fiber_g": 5
       }},
-      "nutrition": "250 kcal, 30g carbs, 15g proteína",
-      "glycemic_load": "low GL",
-      "glycemic_class": "ok",
-      "availability": "All ingredients available",
-      "macros": "Carbs: 30g, Proteína: 15g",
+      "nutrition": "250 kcal, 30g carboidratos, 15g proteína",
       "time": "07:30",
       "time_interval": "07:00-08:00"
+    }},
+    {{
+      "day": "TERÇA-FEIRA",
+      "meal_type": "Café da manhã",
+      "name": "Nome DIFERENTE da refeição de segunda",
+      ...
     }}
   ],
   "timeline": [
     {{
+      "day": "SEGUNDA-FEIRA",
       "time": "07:00",
       "time_display": "7:00 AM",
       "event_type": "Alert",
       "event_category": "Glucose Check",
-      "label": "Alert",
-      "description": "Descrição detalhada do evento",
+      "label": "7:00 AM • Glicemia em Jejum",
+      "description": "Medir glicemia antes do café",
       "color": "red",
       "level": "alert"
     }},
     {{
+      "day": "SEGUNDA-FEIRA",
       "time": "07:30",
       "time_display": "7:30 AM",
       "event_type": "Meal",
       "event_category": "Breakfast",
-      "label": "7:30 AM • Breakfast",
-      "description": "Descrição detalhada da refeição",
+      "meal_type": "Café da manhã",
+      "label": "7:30 AM • Café da manhã",
+      "description": "Descrição com alimentos e calorias",
       "color": "red",
-      "level": "meal",
-      "meal_type": "Café da manhã"
+      "level": "meal"
     }},
     {{
+      "day": "SEGUNDA-FEIRA",
       "time": "08:30",
       "time_display": "8:30 AM",
       "event_type": "Activity",
       "event_category": "Exercise",
-      "label": "8:30 AM • Activity",
-      "description": "Descrição da atividade",
+      "label": "8:30 AM • Caminhada Leve",
+      "description": "30min após café",
       "color": "yellow",
       "level": "activity"
     }}
   ]
 }}
+
+**EXTRAÇÃO DO PLANO:**
+Plano completo (primeiros 2000 caracteres):
+{final_plan[:2000] if len(final_plan) > 2000 else final_plan}
+
+**VALIDAÇÕES OBRIGATÓRIAS:**
+1. 7 dias x 5 refeições = 35 meals total
+2. Cada refeição deve ter "day", "meal_type", "name", "food_items" com macros
+3. Timeline deve ter ~63 eventos (21 glucose checks + 21 atividades + 21 refeições por 7 dias)
+4. NÃO repetir o mesmo "name" mais de 3 vezes
+5. total_nutrition deve ser SOMA dos food_items.macros
 
 DADOS DISPONÍVEIS:
 - Métricas glicêmicas: {metrics}
@@ -242,6 +265,38 @@ RETORNE APENAS O JSON, SEM NADA MAIS.
         print(f"[DEBUG] No valid JSON found in text")
         return {}
     
+    def _validate_meal_variety(self, meals: List[Dict[str, Any]]) -> None:
+        """Validate that meals have sufficient variety across the week"""
+        from collections import Counter
+        
+        # Count meal name occurrences
+        meal_names = [meal.get("name", "") for meal in meals]
+        meal_counts = Counter(meal_names)
+        
+        # Check for excessive repetition
+        duplicates = {name: count for name, count in meal_counts.items() if count > 3}
+        
+        if duplicates:
+            print(f"⚠️  AVISO: Refeições duplicadas detectadas (>3x na semana):")
+            for name, count in duplicates.items():
+                print(f"   - '{name}': {count} vezes")
+            print("   Recomendação: Gerar novo plano com mais variedade")
+        
+        # Count variations per meal type
+        meal_types = {}
+        for meal in meals:
+            meal_type = meal.get("meal_type", "")
+            meal_name = meal.get("name", "")
+            if meal_type not in meal_types:
+                meal_types[meal_type] = set()
+            meal_types[meal_type].add(meal_name)
+        
+        # Check if each meal type has at least 3 variations
+        for meal_type, variations in meal_types.items():
+            if len(variations) < 3:
+                print(f"⚠️  AVISO: {meal_type} tem apenas {len(variations)} variações (mínimo: 3)")
+                print(f"   Variações: {', '.join(variations)}")
+    
     def _normalize_structure(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize plan JSON structure to match frontend expectations"""
         normalized = data.copy()
@@ -258,7 +313,8 @@ RETORNE APENAS O JSON, SEM NADA MAIS.
                 for meal in day_meals:
                     # Convert meal structure to expected format
                     normalized_meal = {
-                        "meal_type": meal.get("name", meal.get("meal_type", "Refeição")),
+                        "day": day_name,  # Add day field
+                        "meal_type": meal.get("meal_type", meal.get("name", "Refeição")),
                         "name": meal.get("name", "Refeição"),
                         "description": meal.get("description", ""),
                         "items": meal.get("items", []),
@@ -274,15 +330,26 @@ RETORNE APENAS O JSON, SEM NADA MAIS.
                     }
                     meals.append(normalized_meal)
                     
-                    # Add to timeline
+                    # Add to timeline with day
                     timeline.append({
+                        "day": day_name,  # Add day field
                         "time": meal.get("time", "08:00"),
-                        "event": meal.get("name", normalized_meal["meal_type"]),
-                        "description": meal.get("description", normalized_meal["description"])
+                        "time_display": meal.get("time", "08:00"),
+                        "event_type": "Meal",
+                        "event_category": meal.get("meal_type", "Meal"),
+                        "meal_type": meal.get("meal_type", meal.get("name", "Refeição")),
+                        "label": f"{meal.get('time', '08:00')} • {meal.get('name', 'Refeição')}",
+                        "description": meal.get("description", ""),
+                        "level": "meal",
+                        "color": "red"
                     })
             
             normalized["meals"] = meals
             normalized["timeline"] = timeline
+            
+            # Validate meal variety
+            self._validate_meal_variety(meals)
+            
             # Keep days for reference but frontend uses meals/timeline
             # del normalized["days"]  # Optional: remove days if not needed
         

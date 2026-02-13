@@ -153,13 +153,13 @@ config/secrets.py
 chroma_db/
 
 # Images and assets
-images/
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.svg
-*.ico
+# images/
+# *.png
+# *.jpg
+# *.jpeg
+# *.gif
+# *.svg
+# *.ico
 
 # Figma exports
 figma/
@@ -247,11 +247,11 @@ htmlcov/
 .cache/
 
 # Docker
-.dockerignore
+# .dockerignore
 
 # Kubernetes
-*.yaml
-*.yml
+# *.yaml
+# *.yml
 
 # Terraform
 *.tfstate
